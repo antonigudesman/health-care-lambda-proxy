@@ -1,0 +1,7 @@
+.venv
+.idea
+dist
+.requirements.txt
+.env
+events
+**__pycache__**

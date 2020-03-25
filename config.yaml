@@ -1,0 +1,6 @@
+region: us-east-1
+
+function_name: turbocaid--proxy
+handler: handler.handler
+description: turbocaid--proxy
+runtime: python3.7
