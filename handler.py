@@ -1,5 +1,14 @@
 import boto3
 import json
+"""
+Request body should be like the following
+{
+    "action": "update-details",
+    "email": "binyominco@gmail.com",
+    "key_to_update": "favorite_drink",
+    "value_to_update": "not that one"
+}
+"""
 
 # boto3 is the AWS SDK library for Python.
 # The "resources" interface allow for a higher-level abstraction than the low-level client interface.
