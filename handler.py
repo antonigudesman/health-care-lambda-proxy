@@ -1,4 +1,5 @@
 import boto3
+import json
 
 # boto3 is the AWS SDK library for Python.
 # The "resources" interface allow for a higher-level abstraction than the low-level client interface.
@@ -10,20 +11,38 @@ table = dynamodb.Table('MedicaidDetails-sps-qa-1')
 
 
 def handler(event, context):
-    action = event['action']
-    if action not in [CREATE_USER, UPDATE_DETAILS]:
-        return
+    try:
+        event_body = json.loads(event['body'])
+        print(json.dumps(event_body))
+        action = event_body['action']
+        if action not in [CREATE_USER, UPDATE_DETAILS]:
+            return
 
-    if action == CREATE_USER:
-        create_user(event)
-    elif action == UPDATE_DETAILS:
-        update_details(event)
+        if action == CREATE_USER:
+            ...
+            # create_user(event_body)
+        elif action == UPDATE_DETAILS:
+            update_details(event_body)
+    except Exception as err:
+        print(str(err))
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"seems_successful": False})
+        }
+
+    return {
+        "statusCode": 200,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps({"seems_successful": True})
+    }
 
 
-def update_details(event):
-    email = event['email']
-    key_to_update = event['key_to_update']
-    value_to_update = event['value_to_update']
+def update_details(event_body):
+    print(str(event_body))
+    email = event_body['email']
+    key_to_update = event_body['key_to_update']
+    value_to_update = event_body['value_to_update']
 
     # The BatchWriteItem API allows us to write multiple items to a table in one request.
     resp = table.update_item(
@@ -40,14 +59,13 @@ def update_details(event):
         UpdateExpression="SET #the_key = :val_to_update"
     )
 
+# def create_user(event_body):
+#     email = event_body['email']
+#     # The BatchWriteItem API allows us to write multiple items to a table in one request.
+#     try:
 
-def create_user(event):
-    email = event['email']
-    # The BatchWriteItem API allows us to write multiple items to a table in one request.
-    try:
+#         with table.batch_writer() as batch:
+#             batch.put_item(Item={"email": email})
 
-        with table.batch_writer() as batch:
-            batch.put_item(Item={"email": email})
-
-    except Exception as err:
-        print(err)
+#     except Exception as err:
+#         print(err)
