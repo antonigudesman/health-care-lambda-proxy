@@ -22,6 +22,11 @@ table = dynamodb.Table(os.environ.get('TABLE', 'MedicaidDetails-sps-qa-1'))
 
 def handler(event, context):
     try:
+        new_user_request = event['request']
+        if new_user_request:
+            new_user_response = create_new_user(new_user_request)
+            return new_user_response
+
         event_body = json.loads(event['body'])
         print(json.dumps(event_body))
         action = event_body['action']
@@ -52,6 +57,21 @@ def handler(event, context):
         "headers": {"Content-Type": "application/json"},
         "body": json.dumps({"success": True, "medicaid_details": medicaid_details})
     }
+
+
+def create_new_user(new_user_request):
+    print(new_user_request)
+    user_email = new_user_request['userAttributes']['email']
+    response = table.put_item(
+        Item={
+            'email': user_email
+        },
+        ReturnValues='NONE'
+    )
+    return response
+    """
+    {'userAttributes': {'sub': 'eb1b4430-5b0e-44c9-ac42-36bca41935e5', 'cognito:user_status': 'CONFIRMED', 'email_verified': 'true', 'phone_number_verified': 'false', 'phone_number': '+7036092827', 'given_name': 'Sean', 'family_name': 'Cohen', 'email': 'binyominco@gmail.com'}}
+    """
 
 
 def update_details(event_body):
