@@ -25,7 +25,8 @@ def handler(event, context):
         new_user_request = event['request']
         if new_user_request:
             new_user_response = create_new_user(new_user_request)
-            return new_user_response
+            print(f'new user response : {json.dumps(new_user_response)}')
+            return event
 
         event_body = json.loads(event['body'])
         print(json.dumps(event_body))
