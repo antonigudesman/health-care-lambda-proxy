@@ -1,5 +1,6 @@
 import boto3
 import json
+import os
 """
 Request body should be like the following
 {
@@ -14,9 +15,9 @@ Request body should be like the following
 # The "resources" interface allow for a higher-level abstraction than the low-level client interface.
 # More details here: http://boto3.readthedocs.io/en/latest/guide/resources.html
 UPDATE_DETAILS = 'update-details'
-CREATE_USER = 'create-user'
+GET_DETAILS = 'get-details'
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-table = dynamodb.Table('MedicaidDetails-sps-qa-1')
+table = dynamodb.Table(os.environ.get('TABLE', 'MedicaidDetails-sps-qa-1'))
 
 
 def handler(event, context):
@@ -24,14 +25,20 @@ def handler(event, context):
         event_body = json.loads(event['body'])
         print(json.dumps(event_body))
         action = event_body['action']
-        if action not in [CREATE_USER, UPDATE_DETAILS]:
-            return
+        if action not in [GET_DETAILS, UPDATE_DETAILS]:
+            return {
+                "statusCode": 403,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "hmm we dont let this"})
+            }
 
-        if action == CREATE_USER:
+        if action == GET_DETAILS:
             ...
-            # create_user(event_body)
+
         elif action == UPDATE_DETAILS:
             update_details(event_body)
+
+        medicaid_details = get_details(event_body)
     except Exception as err:
         print(str(err))
         return {
@@ -43,7 +50,7 @@ def handler(event, context):
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({"seems_successful": True})
+        "body": json.dumps({"success": True, "medicaid_details": medicaid_details})
     }
 
 
@@ -68,13 +75,14 @@ def update_details(event_body):
         UpdateExpression="SET #the_key = :val_to_update"
     )
 
-# def create_user(event_body):
-#     email = event_body['email']
-#     # The BatchWriteItem API allows us to write multiple items to a table in one request.
-#     try:
 
-#         with table.batch_writer() as batch:
-#             batch.put_item(Item={"email": email})
+def get_details(event_body):
+    medicaid_details = table.get_item(
+        Key={
+            'email': event_body['email']
+        },
+        ConsistentRead=True,
+        ReturnConsumedCapacity='NONE',
+    )
 
-#     except Exception as err:
-#         print(err)
+    return medicaid_details
