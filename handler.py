@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import boto3
 import json
 import os
@@ -9,7 +11,7 @@ from jose.utils import base64url_decode
 Request body should be like the following
 {
     "action": "update-details",
-    "email": "binyominco@gmail.com",
+    "id_token": "ljlklkjlkjlklklkjlkjlkjlkj",
     "key_to_update": "favorite_drink",
     "value_to_update": "not that one"
 }
@@ -45,14 +47,25 @@ def handler(event, context):
                 "body": json.dumps({"error": "invalid id token"})
             }
 
+        claims = jwt.get_unverified_claims(id_token)
+        print('claims are')
+        print(json.dumps(claims))
+        if datetime.now().timestamp() > claims['exp']:
+            return {
+                "statusCode": 403,
+                "headers": {"Content-Type": "application/json"},
+                "body": json.dumps({"error": "expired id token"})
+            }
+
+        user_email = claims["cognito:username"]
 
         if action == GET_DETAILS:
             ...
 
         elif action == UPDATE_DETAILS:
-            update_details(event_body)
+            update_details(user_email, event_body)
 
-        medicaid_details = get_details(event_body)
+        medicaid_details = get_details(user_email)
     except Exception as err:
         print(str(err))
         return {
@@ -68,9 +81,8 @@ def handler(event, context):
     }
 
 
-def update_details(event_body):
+def update_details(email, event_body):
     print(str(event_body))
-    email = event_body['email']
     key_to_update = event_body['key_to_update']
     value_to_update = event_body['value_to_update']
 
@@ -90,10 +102,10 @@ def update_details(event_body):
     )
 
 
-def get_details(event_body):
+def get_details(email):
     medicaid_details = table.get_item(
         Key={
-            'email': event_body['email']
+            'email': email
         },
         ConsistentRead=True,
         ReturnConsumedCapacity='NONE',
@@ -124,6 +136,7 @@ def verify_jwt(token: str, jwks) -> bool:
     hmac_key = jwk.construct(get_hmac_key(token, jwks))
 
     message, encoded_signature = token.rsplit(".", 1)
+    
     decoded_signature = base64url_decode(encoded_signature.encode())
 
     return hmac_key.verify(message.encode(), decoded_signature)
