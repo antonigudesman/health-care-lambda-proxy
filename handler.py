@@ -6,12 +6,15 @@ import os
 import requests
 from jose import jwt, jwk
 from jose.utils import base64url_decode
+s3 = boto3.resource('s3')
+bucket_name = os.environ.get('USER_FILES_BUCKET', 'turbocaid--user-files--sps-qa-1')
+
+
 
 """
 Request body should be like the following
 {
     "action": "update-details",
-    "id_token": "ljlklkjlkjlklklkjlkjlkjlkj",
     "key_to_update": "favorite_drink",
     "value_to_update": "not that one"
 }
@@ -22,40 +25,81 @@ Request body should be like the following
 # More details here: http://boto3.readthedocs.io/en/latest/guide/resources.html
 UPDATE_DETAILS = 'update-details'
 GET_DETAILS = 'get-details'
+GET_FILE = 'get-file'
+UPLOAD_FILE = 'upload-file'
+DELETE_FILE = 'delete-file'
+
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table(os.environ.get('TABLE', 'MedicaidDetails-sps-qa-1'))
+
+response_headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET,OPTIONS,POST"
+}
+
+responses = {
+    "options_response": {
+                "statusCode": 200,
+                "headers": response_headers,
+                "body": json.dumps({"message": "successful options response"})
+            },
+    "forbidden_action": {
+                "statusCode": 403,
+                "headers": response_headers,
+                "body": json.dumps({"error": "hmm we dont let this"})
+            },
+    "invalid_token": {
+                "statusCode": 403,
+                "headers": response_headers,
+                "body": json.dumps({"error": "invalid id token"})
+            },
+    "expired_id_token": {
+                "statusCode": 403,
+                "headers": response_headers,
+                "body": json.dumps({"error": "expired id token"})
+            },
+    "missing_file_name": {
+        "statusCode": 400,
+        "headers": response_headers,
+        "body": json.dumps({"error": "missing file name"})
+    },
+    "missing_file_contents": {
+        "statusCode": 400,
+        "headers": response_headers,
+        "body": json.dumps({"error": "missing file contents"})
+    }
+
+}
 
 
 def handler(event, context):
     try:
+        print(str(event))
+
+        #   ------------------  validations  ---------------------------------------------
+        if event['httpMethod'] == 'OPTIONS':
+            return responses['options_response']
+
         event_body = json.loads(event['body'])
         print(json.dumps(event_body))
         action = event_body['action']
-        if action not in [GET_DETAILS, UPDATE_DETAILS]:
-            return {
-                "statusCode": 403,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": "hmm we dont let this"})
-            }
+        if action not in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE]:
+            return responses['forbidden_action']
 
         jwks = get_jwks()
         id_token = event_body['id_token']
         if not verify_jwt(id_token, jwks):
-            return {
-                "statusCode": 403,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": "invalid id token"})
-            }
+            return responses['invalid_token']
 
         claims = jwt.get_unverified_claims(id_token)
         print('claims are')
         print(json.dumps(claims))
         if datetime.now().timestamp() > claims['exp']:
-            return {
-                "statusCode": 403,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": "expired id token"})
-            }
+            return responses['expired_id_token']
+
+        #  ----------- end of validation - let's actually do something now   ----------------
 
         user_email = claims["cognito:username"]
 
@@ -65,18 +109,27 @@ def handler(event, context):
         elif action == UPDATE_DETAILS:
             update_details(user_email, event_body)
 
+        elif action == GET_FILE:
+            ...
+
+        elif action == UPLOAD_FILE:
+            return upload_file(user_email, event_body)
+
+        elif action == DELETE_FILE:
+            ...
+
         medicaid_details = get_details(user_email)
     except Exception as err:
         print(str(err))
         return {
             "statusCode": 500,
-            "headers": {"Content-Type": "application/json"},
+            "headers": response_headers,
             "body": json.dumps({"seems_successful": False})
         }
 
     return {
         "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
+        "headers": response_headers,
         "body": json.dumps({"success": True, "medicaid_details": medicaid_details})
     }
 
@@ -88,7 +141,7 @@ def update_details(email, event_body):
 
     # The BatchWriteItem API allows us to write multiple items to a table in one request.
     resp = table.update_item(
-        Key={"email": email},
+        Key={'email': email, 'application_name': 'my_application'},
         ExpressionAttributeNames={
             "#the_key": key_to_update
         },
@@ -105,7 +158,7 @@ def update_details(email, event_body):
 def get_details(email):
     medicaid_details = table.get_item(
         Key={
-            'email': email
+            'email': email, 'application_name': 'my_application'
         },
         ConsistentRead=True,
         ReturnConsumedCapacity='NONE',
@@ -136,7 +189,20 @@ def verify_jwt(token: str, jwks) -> bool:
     hmac_key = jwk.construct(get_hmac_key(token, jwks))
 
     message, encoded_signature = token.rsplit(".", 1)
-    
+
     decoded_signature = base64url_decode(encoded_signature.encode())
 
     return hmac_key.verify(message.encode(), decoded_signature)
+
+
+def upload_file(user_email, event_body):
+    file_name = event_body['fileName']
+    file_contents = event_body['fileContents']
+    if not file_name:
+        return responses['missing_file_name']
+    if not file_contents:
+        return responses['missing_file_contents']
+
+    full_file_name = f'{user_email}/{file_name}'
+    s3.Object(bucket_name, full_file_name).put(Body=file_contents)
+    #s3.Object(bucket_name, "binyomin/test/tx").put(Body="this is just a test.  Please remain calm.")
