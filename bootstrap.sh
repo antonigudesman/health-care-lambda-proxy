@@ -11,8 +11,8 @@ aws dynamodb create-table \
         AttributeName=email,AttributeType=S \
         AttributeName=application_name,AttributeType=S \
     --key-schema AttributeName=email,KeyType=HASH AttributeName=application_name,KeyType=RANGE \
-    --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1
-
+    --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1 \
+    --endpoint-url http://localhost:8000
 sudo yum install -y python3
 sudo python3 -m pip install pipenv
 cd /vagrant && export PIPENV_VENV_IN_PROJECT=1 && python3 -m pipenv install

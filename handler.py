@@ -29,8 +29,11 @@ GET_FILE = 'get-file'
 UPLOAD_FILE = 'upload-file'
 DELETE_FILE = 'delete-file'
 
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
-table = dynamodb.Table(os.environ.get('TABLE', 'MedicaidDetails-sps-qa-1'))
+IS_TEST = os.environ.get('IS_TEST', True)
+endpoint_url = 'http://localhost:8000' if IS_TEST else None
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=endpoint_url)
+
+table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 
 response_headers = {
     "Content-Type": "application/json",
@@ -153,6 +156,7 @@ def update_details(email, event_body):
         # For more details on update expressions, see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
         UpdateExpression="SET #the_key = :val_to_update"
     )
+    return resp
 
 
 def get_details(email):

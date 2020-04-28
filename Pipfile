@@ -7,6 +7,7 @@ name = "pypi"
 python-jose = "*"
 requests = "*"
 botocore = "*"
+boto3 = "*"
 
 [dev-packages]
 boto3 = "*"
@@ -14,6 +15,7 @@ python-lambda = "*"
 pyyaml = "*"
 pipfile-requirements = "*"
 click = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.7"
