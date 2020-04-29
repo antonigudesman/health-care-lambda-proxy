@@ -18,6 +18,13 @@ def clear_data():
         }
     )
 
+    table.put_item(
+        Item={
+            'email': EMAIL,
+            'application_name': APPLICATION_NAME
+            }
+    )
+
 
 # def test_get_details(clear_data):
 #     resp = get_details(EMAIL)
@@ -28,11 +35,11 @@ def test_update_details(clear_data):
     event_body = {
         "action": "update-details",
         "key_to_update": "spouse_info_first_name",
-        "value_to_update": "Shprintzah"
+        "value_to_update": {'value':'Shprintzah'}
     }
 
     update_details(EMAIL, event_body)
     resp = get_details(EMAIL)
 
     assert resp['Item']['email'] == EMAIL
-    assert resp['Item']['spouse_info_first_name'] == 'Shprintzah'
+    assert resp['Item']['spouse_info_first_name'] == {'value':'Shprintzah'}
