@@ -15,4 +15,4 @@ aws dynamodb create-table \
     --endpoint-url http://localhost:8000
 sudo yum install -y python3
 sudo python3 -m pip install pipenv
-cd /vagrant && export PIPENV_VENV_IN_PROJECT=1 && python3 -m pipenv install
+cd /vagrant && export PIPENV_VENV_IN_PROJECT=1 && python3 -m pipenv install --skip-lock
