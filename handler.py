@@ -155,6 +155,10 @@ def is_list_type(key_to_update):
     return key_to_update in array_types
 
 
+class InvalidUuidError(Exception):
+    pass
+
+
 def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db):
     dict_of_db_vals ={item['uuid']: item for item in val_from_db} if val_from_db else {}
 
@@ -162,9 +166,10 @@ def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db
     # for medicaid_detail in db_list:
     #     dict_by_uuid[medicaid_detail['uuid']] = medicaid_detail
 
+    now = datetime.datetime.now().isoformat()
+
     medicaid_details_to_insert = []
     for detail_item_to_update in value_to_update:
-        now = datetime.datetime.now().isoformat()
 
         medicaid_detail = MedicaidDetail(updated_date=now, value=detail_item_to_update['value'])
 
@@ -172,8 +177,9 @@ def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db
             the_uuid = detail_item_to_update['uuid']
             try:
                 db_item = dict_of_db_vals[uuid]
-            except Exception as err:
+            except KeyError as err:
                 print(f'could not find corresponding item in db with uuid {the_uuid}')
+                raise InvalidUuidError
             medicaid_detail.uuid = the_uuid
             medicaid_detail.created_date = db_item['created_date']
         else:
@@ -182,7 +188,7 @@ def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db
         
         medicaid_details_to_insert.append(medicaid_detail.__dict__)
         
-        return medicaid_details_to_insert
+    return medicaid_details_to_insert
 
 
 def convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db):
@@ -214,7 +220,10 @@ def update_details(email, event_body):
     value_to_update_medicaid_detail_format = None
     
     if is_list_type(key_to_update):
-        value_to_update_medicaid_detail_format = convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db)
+        try:
+            value_to_update_medicaid_detail_format = convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db)
+        except InvalidUuidError:
+            ...
     else:
         value_to_update_medicaid_detail_format = convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db)
 

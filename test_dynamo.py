@@ -22,7 +22,7 @@ def clear_data():
         Item={
             'email': EMAIL,
             'application_name': APPLICATION_NAME
-            }
+        }
     )
 
 
@@ -70,5 +70,76 @@ def test_update_details_non_list_value(clear_data):
     assert spouse_first_name_detail2['uuid'] == spouse_first_name_detail['uuid']
     assert spouse_first_name_detail2['created_date'] == spouse_first_name_detail['created_date']
     assert spouse_first_name_detail2['updated_date'] != spouse_first_name_detail['updated_date']
+
+
+def test_update_details_list_value(clear_data):
+    VAL_TO_UPDATE = [
+        {
+            'value': {
+                'name': 'Albert Einstein',
+                'moustache_length': 'normal',
+                'intelligence': 'very high'
+            }
+        },
+        {
+            'value': {
+                'name': 'Yosemite Sam',
+                'moustache_length': 'very long',
+                'intelligence': 'not high'
+            }
+        },
+        {
+            'value': {
+                'name': 'Mark Twain',
+                'moustache_length': 'long',
+                'intelligence': 'high'
+            }
+        }
+    ]
+
+    event_body = {
+        "action": "update-details",
+        "key_to_update": "contacts",
+        "value_to_update": VAL_TO_UPDATE
+    }
+
+    update_details(EMAIL, event_body)
+    resp = get_details(EMAIL)
+
+    resp_contacts = resp['Item']['contacts']
+
+    assert resp['Item']['email'] == EMAIL
+
+    assert len(resp_contacts)==3
+
+    for contact in resp_contacts:
+        assert len(contact['uuid'])==32
+
+    first_contact_uuid = resp_contacts[0]['uuid']
+
+    with_new_contact = resp_contacts + [{
+            'value': {
+                'name': 'Yehuda Herzig',
+                'moustache_length': 'usually normal',
+                'intelligence': 'usually normal, today not so much'
+            }
+        }]
+
+    VAL_TO_UPDATE_2 =  with_new_contact
+
+    event_body_2 = {
+        "action": "update-details",
+        "key_to_update": "contacts",
+        "value_to_update": VAL_TO_UPDATE_2
+    }
+
+    update_details(EMAIL, event_body_2)
+    resp2 = get_details(EMAIL)
+
+    resp_contacts2 = resp2['Item']['contacts']
+
+    assert resp_contacts2[0]['uuid'] == first_contact_uuid
+
+    assert len(resp_contacts2) == 4
 
 
