@@ -154,7 +154,7 @@ def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db
         if 'uuid' in detail_item_to_update:
             the_uuid = detail_item_to_update['uuid']
             try:
-                db_item = dict_of_db_vals[uuid]
+                db_item = dict_of_db_vals[the_uuid]
             except KeyError as err:
                 print(f'could not find corresponding item in db with uuid {the_uuid}')
                 raise InvalidUuidError
