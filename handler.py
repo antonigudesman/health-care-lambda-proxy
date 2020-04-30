@@ -8,17 +8,20 @@ from jose import jwt, jwk
 from jose.utils import base64url_decode
 import datetime
 import uuid
-s3 = boto3.resource('s3')
+from response_helpers import response_headers, missing_file_contents,\
+    missing_file_name, expired_id_token, invalid_token, forbidden_action, options_response,\
+    InvalidTokenError, ExpiredTokenError
+
 bucket_name = os.environ.get('USER_FILES_BUCKET', 'turbocaid--user-files--sps-qa-1')
-
-
+IS_TEST = os.environ.get('IS_TEST', True)
+s3 = boto3.resource('s3')
 
 """
 Request body should be like the following
 {
     "action": "update-details",
     "key_to_update": "favorite_drink",
-    "value_to_update": "not that one"
+    "value_to_update": "{"value": "lemonade"}"
 }
 """
 
@@ -31,52 +34,10 @@ GET_FILE = 'get-file'
 UPLOAD_FILE = 'upload-file'
 DELETE_FILE = 'delete-file'
 
-IS_TEST = os.environ.get('IS_TEST', True)
 endpoint_url = 'http://localhost:8000' if IS_TEST else None
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=endpoint_url)
 
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
-
-response_headers = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,OPTIONS,POST"
-}
-
-responses = {
-    "options_response": {
-                "statusCode": 200,
-                "headers": response_headers,
-                "body": json.dumps({"message": "successful options response"})
-            },
-    "forbidden_action": {
-                "statusCode": 403,
-                "headers": response_headers,
-                "body": json.dumps({"error": "hmm we dont let this"})
-            },
-    "invalid_token": {
-                "statusCode": 403,
-                "headers": response_headers,
-                "body": json.dumps({"error": "invalid id token"})
-            },
-    "expired_id_token": {
-                "statusCode": 403,
-                "headers": response_headers,
-                "body": json.dumps({"error": "expired id token"})
-            },
-    "missing_file_name": {
-        "statusCode": 400,
-        "headers": response_headers,
-        "body": json.dumps({"error": "missing file name"})
-    },
-    "missing_file_contents": {
-        "statusCode": 400,
-        "headers": response_headers,
-        "body": json.dumps({"error": "missing file contents"})
-    }
-
-}
 
 
 class MedicaidDetail:
@@ -87,51 +48,51 @@ class MedicaidDetail:
         self.value = value
 
 
+def is_supported_action(action):
+    return action in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE]
+
+
+def get_claims(event_body):
+    jwks = get_jwks()
+    id_token = event_body['id_token']
+    if not verify_jwt(id_token, jwks):
+        raise InvalidTokenError
+
+    claims = jwt.get_unverified_claims(id_token)
+    if datetime.now().timestamp() > claims['exp']:
+        raise ExpiredTokenError
+
+    return claims
+
+
 def handler(event, context):
     try:
         print(str(event))
 
-        #   ------------------  validations  ---------------------------------------------
         if event['httpMethod'] == 'OPTIONS':
-            return responses['options_response']
+            return options_response
+
+    #   ------------------  validations  ---------------------------------------------
 
         event_body = json.loads(event['body'])
-        print(json.dumps(event_body))
         action = event_body['action']
-        if action not in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE]:
-            return responses['forbidden_action']
 
-        jwks = get_jwks()
-        id_token = event_body['id_token']
-        if not verify_jwt(id_token, jwks):
-            return responses['invalid_token']
+        if not is_supported_action(action):
+            return forbidden_action
+        try:
+            claims = get_claims(event_body)
+        except InvalidTokenError:
+            return invalid_token
+        except ExpiredTokenError:
+            return expired_id_token
 
-        claims = jwt.get_unverified_claims(id_token)
-        print('claims are')
-        print(json.dumps(claims))
-        if datetime.now().timestamp() > claims['exp']:
-            return responses['expired_id_token']
 
         #  ----------- end of validation - let's actually do something now   ----------------
 
         user_email = claims["cognito:username"]
-
-        if action == GET_DETAILS:
-            ...
-
-        elif action == UPDATE_DETAILS:
-            update_details(user_email, event_body)
-
-        elif action == GET_FILE:
-            ...
-
-        elif action == UPLOAD_FILE:
-            return upload_file(user_email, event_body)
-
-        elif action == DELETE_FILE:
-            ...
-
+        route_based_on_action(action, event_body, user_email)
         medicaid_details = get_details(user_email)
+
     except Exception as err:
         print(str(err))
         return {
@@ -145,6 +106,23 @@ def handler(event, context):
         "headers": response_headers,
         "body": json.dumps({"success": True, "medicaid_details": medicaid_details})
     }
+
+
+def route_based_on_action(action, event_body, user_email):
+    if action == GET_DETAILS:
+        ...
+
+    elif action == UPDATE_DETAILS:
+        update_details(user_email, event_body)
+
+    elif action == GET_FILE:
+        ...
+
+    elif action == UPLOAD_FILE:
+        return upload_file(user_email, event_body)
+
+    elif action == DELETE_FILE:
+        ...
 
 
 def is_list_type(key_to_update):
@@ -279,9 +257,9 @@ def upload_file(user_email, event_body):
     file_name = event_body['fileName']
     file_contents = event_body['fileContents']
     if not file_name:
-        return responses['missing_file_name']
+        return missing_file_name
     if not file_contents:
-        return responses['missing_file_contents']
+        return missing_file_contents
 
     full_file_name = f'{user_email}/{file_name}'
     s3.Object(bucket_name, full_file_name).put(Body=file_contents)
