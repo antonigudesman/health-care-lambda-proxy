@@ -6,8 +6,8 @@ name = "pypi"
 [packages]
 python-jose = "*"
 requests = "*"
-botocore = "*"
 boto3 = "*"
+pytest = "*"
 
 [dev-packages]
 boto3 = "*"
