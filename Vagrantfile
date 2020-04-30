@@ -15,5 +15,6 @@ require 'json'
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.box = "bento/amazonlinux-2"
   config.vm.provision "file", source: "~/.aws/credentials", destination: "/home/vagrant/.aws/credentials"
+  config.vm.provision "file", source: "~/.aws/config", destination: "/home/vagrant/.aws/config"
   config.vm.provision :shell, path: "bootstrap.sh"
 end
