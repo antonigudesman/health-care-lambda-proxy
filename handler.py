@@ -8,6 +8,8 @@ from jose import jwt, jwk
 from jose.utils import base64url_decode
 import datetime
 import uuid
+from jwt_utils import get_jwks, verify_jwt
+from medicaid_detail_utils import MedicaidDetail, convert_to_medicaid_detail, convert_to_medicaid_details_list
 from response_helpers import response_headers, missing_file_contents,\
     missing_file_name, expired_id_token, invalid_token, forbidden_action, options_response,\
     InvalidTokenError, ExpiredTokenError
@@ -38,14 +40,6 @@ endpoint_url = 'http://localhost:8000' if IS_TEST else None
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=endpoint_url)
 
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
-
-
-class MedicaidDetail:
-    def __init__(self,  value,  updated_date, the_uuid=None, created_date=None):
-        self.uuid = the_uuid
-        self.created_date = created_date
-        self.updated_date = updated_date
-        self.value = value
 
 
 def is_supported_action(action):
@@ -133,55 +127,6 @@ def is_list_type(key_to_update):
     return key_to_update in array_types
 
 
-class InvalidUuidError(Exception):
-    pass
-
-
-def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db):
-    dict_of_db_vals ={item['uuid']: item for item in val_from_db} if val_from_db else {}
-
-    # dict_by_uuid = {}  # {'u8982-w98rw9r': {theitemfromdb}}
-    # for medicaid_detail in db_list:
-    #     dict_by_uuid[medicaid_detail['uuid']] = medicaid_detail
-
-    now = datetime.datetime.now().isoformat()
-
-    medicaid_details_to_insert = []
-    for detail_item_to_update in value_to_update:
-
-        medicaid_detail = MedicaidDetail(updated_date=now, value=detail_item_to_update['value'])
-
-        if 'uuid' in detail_item_to_update:
-            the_uuid = detail_item_to_update['uuid']
-            try:
-                db_item = dict_of_db_vals[the_uuid]
-            except KeyError as err:
-                print(f'could not find corresponding item in db with uuid {the_uuid}')
-                raise InvalidUuidError
-            medicaid_detail.uuid = the_uuid
-            medicaid_detail.created_date = db_item['created_date']
-        else:
-            medicaid_detail.uuid = uuid.uuid4().hex
-            medicaid_detail.created_date = datetime.datetime.now().isoformat()
-        
-        medicaid_details_to_insert.append(medicaid_detail.__dict__)
-        
-    return medicaid_details_to_insert
-
-
-def convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db):
-    now = datetime.datetime.now().isoformat()
-    medicaid_detail = MedicaidDetail(updated_date=now, value=value_to_update['value'])
-    if val_from_db:     
-        medicaid_detail.uuid = val_from_db['uuid']
-        medicaid_detail.created_date = val_from_db['created_date']
-    else:
-        medicaid_detail.uuid = uuid.uuid4().hex
-        medicaid_detail.created_date = now
-        
-    return medicaid_detail.__dict__
-
-
 def get_db_value(email, key_to_update):
     return get_details(email)['Item'].get(key_to_update, None)
 
@@ -198,10 +143,7 @@ def update_details(email, event_body):
     value_to_update_medicaid_detail_format = None
     
     if is_list_type(key_to_update):
-        try:
-            value_to_update_medicaid_detail_format = convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db)
-        except InvalidUuidError:
-            ...
+        value_to_update_medicaid_detail_format = convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db)
     else:
         value_to_update_medicaid_detail_format = convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db)
 
@@ -234,35 +176,27 @@ def get_details(email):
     return medicaid_details
 
 
-def get_jwks():
-    return requests.get(
-        f"https://cognito-idp.us-east-1.amazonaws.com/us-east-1_IiYvInxsJ/.well-known/jwks.json"
-    ).json()
-
-
-def get_hmac_key(token: str, jwks):
-    kid = jwt.get_unverified_header(token).get("kid")
-    for key in jwks.get("keys", []):
-        if key.get("kid") == kid:
-            return key
-
-
-def verify_jwt(token: str, jwks) -> bool:
-    hmac_key = get_hmac_key(token, jwks)
-
-    if not hmac_key:
-        raise ValueError("No pubic key found!")
-
-    hmac_key = jwk.construct(get_hmac_key(token, jwks))
-
-    message, encoded_signature = token.rsplit(".", 1)
-
-    decoded_signature = base64url_decode(encoded_signature.encode())
-
-    return hmac_key.verify(message.encode(), decoded_signature)
-
-
 def upload_file(user_email, event_body):
+
+    """
+    need to have multiple documents per medicaid detail
+    documents column
+    [
+        {
+            uuid: 'adslkajlkjlk'  (this will be used by front end for deleting)
+            associated_medicaid_detail_uuid: 'lkjljklkj' (John Doe's uuid)  (This will be useful by front end for retrieving)
+            document_type: 'POA'
+            created_date: '2020....'
+            document_name: 'bobPOA2019.jpg'
+            s3_location: 'sdsdfsdfsdf....'
+        }
+    ]
+
+    :param user_email:
+    :param event_body:
+    :return:
+    """
+
     file_name = event_body['fileName']
     file_contents = event_body['fileContents']
     if not file_name:

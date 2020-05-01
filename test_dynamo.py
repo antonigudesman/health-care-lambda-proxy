@@ -26,11 +26,6 @@ def clear_data():
     )
 
 
-# def test_get_details(clear_data):
-#     resp = get_details(EMAIL)
-#     assert resp == "purple octopus"
-
-
 def test_update_details_non_list_value(clear_data):
     VAL_TO_UPDATE = 'Shprintzah'
     event_body = {
