@@ -13,6 +13,18 @@ class MedicaidDetail:
         self.updated_date = updated_date
         self.value = value
 
+class FileInfo:
+    def __init__(self, document_type, document_name, s3_location,  associated_medicaid_detail_uuid, the_uuid):
+        self.associated_medicaid_detail_uuid = associated_medicaid_detail_uuid
+        self.document_type= document_type
+        self.document_name= document_name
+        self.s3_location = s3_location
+        self.created_date = datetime.datetime.now().isoformat()
+        self.uuid = the_uuid
+
+
+def create_uuid():
+    return uuid.uuid4().hex
 
 def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db):
     dict_of_db_vals = {item['uuid']: item for item in val_from_db} if val_from_db else {}
@@ -38,7 +50,7 @@ def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db
             medicaid_detail.uuid = the_uuid
             medicaid_detail.created_date = db_item['created_date']
         else:
-            medicaid_detail.uuid = uuid.uuid4().hex
+            medicaid_detail.uuid = create_uuid()
             medicaid_detail.created_date = datetime.datetime.now().isoformat()
 
         medicaid_details_to_insert.append(medicaid_detail.__dict__)
@@ -53,7 +65,7 @@ def convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db):
         medicaid_detail.uuid = val_from_db['uuid']
         medicaid_detail.created_date = val_from_db['created_date']
     else:
-        medicaid_detail.uuid = uuid.uuid4().hex
+        medicaid_detail.uuid = create_uuid()
         medicaid_detail.created_date = now
 
     return medicaid_detail.__dict__

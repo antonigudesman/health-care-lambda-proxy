@@ -9,9 +9,10 @@ from jose.utils import base64url_decode
 import datetime
 import uuid
 from jwt_utils import get_jwks, verify_jwt
-from medicaid_detail_utils import MedicaidDetail, convert_to_medicaid_detail, convert_to_medicaid_details_list
-from response_helpers import response_headers, missing_file_contents,\
-    missing_file_name, expired_id_token, invalid_token, forbidden_action, options_response,\
+from medicaid_detail_utils import MedicaidDetail, convert_to_medicaid_detail, convert_to_medicaid_details_list, \
+    create_uuid, FileInfo
+from response_helpers import response_headers, missing_file_contents, \
+    missing_file_name, expired_id_token, invalid_token, forbidden_action, options_response, \
     InvalidTokenError, ExpiredTokenError
 
 bucket_name = os.environ.get('USER_FILES_BUCKET', 'turbocaid--user-files--sps-qa-1')
@@ -66,7 +67,7 @@ def handler(event, context):
         if event['httpMethod'] == 'OPTIONS':
             return options_response
 
-    #   ------------------  validations  ---------------------------------------------
+        #   ------------------  validations  ---------------------------------------------
 
         event_body = json.loads(event['body'])
         action = event_body['action']
@@ -79,7 +80,6 @@ def handler(event, context):
             return invalid_token
         except ExpiredTokenError:
             return expired_id_token
-
 
         #  ----------- end of validation - let's actually do something now   ----------------
 
@@ -121,7 +121,7 @@ def route_based_on_action(action, event_body, user_email):
 
 def is_list_type(key_to_update):
     array_types = [
-        'contacts', 'previous_addresses'
+        'contacts', 'previous_addresses', 'documents'
     ]
 
     return key_to_update in array_types
@@ -141,9 +141,10 @@ def update_details(email, event_body):
 
     val_from_db = get_db_value(email, key_to_update)
     value_to_update_medicaid_detail_format = None
-    
+
     if is_list_type(key_to_update):
-        value_to_update_medicaid_detail_format = convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db)
+        value_to_update_medicaid_detail_format = convert_to_medicaid_details_list(key_to_update, value_to_update,
+                                                                                  val_from_db)
     else:
         value_to_update_medicaid_detail_format = convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db)
 
@@ -177,7 +178,6 @@ def get_details(email):
 
 
 def upload_file(user_email, event_body):
-
     """
     need to have multiple documents per medicaid detail
     documents column
@@ -197,13 +197,46 @@ def upload_file(user_email, event_body):
     :return:
     """
 
+    new_uuid = create_uuid()
+
     file_name = event_body['fileName']
     file_contents = event_body['fileContents']
+    document_type = event_body['document_type']
+    associated_medicaid_detail_uuid = event_body['associated_medicaid_detail_uuid']
+
     if not file_name:
         return missing_file_name
     if not file_contents:
         return missing_file_contents
 
     full_file_name = f'{user_email}/{file_name}'
-    s3.Object(bucket_name, full_file_name).put(Body=file_contents)
-    #s3.Object(bucket_name, "binyomin/test/tx").put(Body="this is just a test.  Please remain calm.")
+    bucket_location = s3.Object(bucket_name, full_file_name, metadata={'uuid': new_uuid}).put(Body=file_contents)
+    # s3.Object(bucket_name, "binyomin/test/tx").put(Body="this is just a test.  Please remain calm.")
+
+    incoming_file_info = {
+        'associated_medicaid_detail_uuid': associated_medicaid_detail_uuid,
+        'document_type': document_type,
+        'document_name': file_name,
+        's3_location': bucket_location
+    }
+
+    val_from_db = get_db_value(user_email, 'documents')
+
+    file_info = FileInfo(s3_location=incoming_file_info['s3_location'],
+                         document_name=incoming_file_info['document_name'],
+                         document_type=incoming_file_info['document_type'],
+                         associated_medicaid_detail_uuid=incoming_file_info['associated_medicaid_detail_uuid'],
+                         the_uuid=new_uuid
+                         )
+
+    list_of_file_infos = val_from_db.copy()
+
+    list_of_file_infos.append(file_info.__dict__)
+
+    update_dynamo_event_body = {
+        "action": "update-details",
+        "key_to_update": "documents",
+        "value_to_update": list_of_file_infos
+    }
+
+    update_details(user_email, update_dynamo_event_body)
