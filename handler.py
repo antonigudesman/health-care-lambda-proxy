@@ -262,3 +262,28 @@ def upload_file(user_email, event_body):
     }
 
     add_document(user_email, update_dynamo_event_body)
+
+def delete_file(user_email, the_uuid):
+    delete_document_info_from_database(user_email, the_uuid)
+    #delete_file_from_bucket(user_email, the_uuid)
+
+def delete_document_info_from_database(user_email, the_uuid):
+    all_documents_in_database =  get_db_value(user_email, 'documents')
+    doc_to_delete = next((x for x in all_documents_in_database if x.uuid == the_uuid), None)
+    if doc_to_delete:
+        adjusted_document_list = all_documents_in_database.remove(doc_to_delete)
+        resp = table.update_item(
+            Key={'email': user_email, 'application_name': 'my_application'},
+            ExpressionAttributeNames={
+                "#the_key": 'documents'
+            },
+            # Expression attribute values specify placeholders for attribute values to use in your update expressions.
+            ExpressionAttributeValues={
+                ":val_to_update": adjusted_document_list
+            },
+            # UpdateExpression declares the updates we want to perform on our item.
+            # For more details on update expressions, see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
+            UpdateExpression="SET #the_key = :val_to_update"
+        )
+        return resp
+
