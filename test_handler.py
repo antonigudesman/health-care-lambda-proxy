@@ -1,4 +1,4 @@
-from handler import update_details, get_details
+from handler import update_details, get_details, upload_file, BUCKET_NAME
 import boto3
 import pytest
 
@@ -24,6 +24,13 @@ def clear_data():
             'application_name': APPLICATION_NAME
         }
     )
+
+@pytest.fixture
+def clean_bucket():
+    s3 = boto3.resource('s3')
+    bucket = s3.Bucket(BUCKET_NAME)
+    # suggested by Jordon Philips
+    bucket.objects.all().delete()
 
 
 def test_update_details_non_list_value(clear_data):
@@ -105,22 +112,22 @@ def test_update_details_list_value(clear_data):
 
     assert resp['Item']['email'] == EMAIL
 
-    assert len(resp_contacts)==3
+    assert len(resp_contacts) == 3
 
     for contact in resp_contacts:
-        assert len(contact['uuid'])==32
+        assert len(contact['uuid']) == 32
 
     first_contact_uuid = resp_contacts[0]['uuid']
 
     with_new_contact = resp_contacts + [{
-            'value': {
-                'name': 'Yehuda Herzig',
-                'moustache_length': 'usually normal',
-                'intelligence': 'usually normal, today not so much'
-            }
-        }]
+        'value': {
+            'name': 'Yehuda Herzig',
+            'moustache_length': 'usually normal',
+            'intelligence': 'usually normal, today not so much'
+        }
+    }]
 
-    VAL_TO_UPDATE_2 =  with_new_contact
+    VAL_TO_UPDATE_2 = with_new_contact
 
     event_body_2 = {
         "action": "update-details",
@@ -137,4 +144,37 @@ def test_update_details_list_value(clear_data):
 
     assert len(resp_contacts2) == 4
 
+
+def test_file_upload(clear_data, clean_bucket):
+    event_body_1 = {
+        'file_name': 'the_very_very_awesomely_cool_file.jpg',
+        'document_type': 'birth_certificate',
+        'associated_medicaid_detail_uuid': '54321',
+        'file_contents':'I was born way back in 1842'
+    }
+
+    upload_file(EMAIL,event_body_1)
+
+    event_body_2 = {
+        'file_name': 'muncatcher_passport.jpg',
+        'document_type': 'passport',
+        'associated_medicaid_detail_uuid': '12345',
+        'file_contents':'Appears to be blank'
+    }
+
+    upload_file(EMAIL, event_body_2)
+
+    resp = get_details(EMAIL)
+
+    document_resp = resp['Item']['documents']
+
+    assert len(document_resp)==2
+
+    assert document_resp[0]['document_name']=='the_very_very_awesomely_cool_file.jpg'
+
+    assert document_resp[1]['associated_medicaid_detail_uuid'] == '12345'
+
+    assert document_resp[1]['uuid'] is not None
+
+    assert document_resp[0]['s3_location'] is not None
 

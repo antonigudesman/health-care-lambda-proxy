@@ -15,7 +15,7 @@ from response_helpers import response_headers, missing_file_contents, \
     missing_file_name, expired_id_token, invalid_token, forbidden_action, options_response, \
     InvalidTokenError, ExpiredTokenError
 
-bucket_name = os.environ.get('USER_FILES_BUCKET', 'turbocaid--user-files--sps-qa-1')
+BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
 IS_TEST = os.environ.get('IS_TEST', True)
 s3 = boto3.resource('s3')
 
@@ -164,6 +164,26 @@ def update_details(email, event_body):
     )
     return resp
 
+def add_document(email, event_body):
+    print(str(event_body))
+    key_to_update = 'documents'
+    all_documents = event_body['value_to_update']
+
+    # The BatchWriteItem API allows us to write multiple items to a table in one request.
+    resp = table.update_item(
+        Key={'email': email, 'application_name': 'my_application'},
+        ExpressionAttributeNames={
+            "#the_key": key_to_update
+        },
+        # Expression attribute values specify placeholders for attribute values to use in your update expressions.
+        ExpressionAttributeValues={
+            ":val_to_update": all_documents
+        },
+        # UpdateExpression declares the updates we want to perform on our item.
+        # For more details on update expressions, see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
+        UpdateExpression="SET #the_key = :val_to_update"
+    )
+    return resp
 
 def get_details(email):
     medicaid_details = table.get_item(
@@ -199,8 +219,8 @@ def upload_file(user_email, event_body):
 
     new_uuid = create_uuid()
 
-    file_name = event_body['fileName']
-    file_contents = event_body['fileContents']
+    file_name = event_body['file_name']
+    file_contents = event_body['file_contents']
     document_type = event_body['document_type']
     associated_medicaid_detail_uuid = event_body['associated_medicaid_detail_uuid']
 
@@ -210,7 +230,10 @@ def upload_file(user_email, event_body):
         return missing_file_contents
 
     full_file_name = f'{user_email}/{file_name}'
-    bucket_location = s3.Object(bucket_name, full_file_name, metadata={'uuid': new_uuid}).put(Body=file_contents)
+    bucket_location = s3.Object(BUCKET_NAME,
+                                full_file_name
+                                #metadata={'uuid': new_uuid}
+                                ).put(Body=file_contents)
     # s3.Object(bucket_name, "binyomin/test/tx").put(Body="this is just a test.  Please remain calm.")
 
     incoming_file_info = {
@@ -229,14 +252,13 @@ def upload_file(user_email, event_body):
                          the_uuid=new_uuid
                          )
 
-    list_of_file_infos = val_from_db.copy()
+    list_of_file_infos = val_from_db.copy() if val_from_db else []
 
     list_of_file_infos.append(file_info.__dict__)
 
     update_dynamo_event_body = {
-        "action": "update-details",
-        "key_to_update": "documents",
+        "action": "add_document",
         "value_to_update": list_of_file_infos
     }
 
-    update_details(user_email, update_dynamo_event_body)
+    add_document(user_email, update_dynamo_event_body)

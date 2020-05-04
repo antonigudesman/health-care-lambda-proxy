@@ -69,3 +69,5 @@ def convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db):
         medicaid_detail.created_date = now
 
     return medicaid_detail.__dict__
+
+
