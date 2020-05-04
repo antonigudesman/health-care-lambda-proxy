@@ -9,7 +9,7 @@
 
 ## Test
 -  Use pytest
-    - recommed using Pycharm instead of command line (you'll have an easier time setting environment variables and debugging)
+    - recommend using Pycharm instead of command line (you'll have an easier time setting environment variables and debugging)
 
 ## Build
 - use python-lambda

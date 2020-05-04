@@ -3,7 +3,7 @@ import boto3
 import pytest
 
 EMAIL = 'jasonh@ltccs.com'
-APPLICATION_NAME = 'my_application'
+APPLICATION_UUID = '098029483-sdfsf-234243-009023424'
 
 
 @pytest.fixture
@@ -14,14 +14,15 @@ def clear_data():
     table.delete_item(
         Key={
             'email': EMAIL,
-            'application_name': APPLICATION_NAME
+            'application_uuid': APPLICATION_UUID
         }
     )
 
     table.put_item(
         Item={
             'email': EMAIL,
-            'application_name': APPLICATION_NAME
+            'application_uuid': APPLICATION_UUID,
+            'documents': []
         }
     )
 
@@ -40,11 +41,12 @@ def test_update_details_non_list_value(clear_data):
         "key_to_update": "spouse_info_first_name",
         "value_to_update": {
             "value": VAL_TO_UPDATE
-        }
+        },
+        "application_uuid": APPLICATION_UUID
     }
 
     update_details(EMAIL, event_body)
-    resp = get_details(EMAIL)
+    resp = get_details(EMAIL, APPLICATION_UUID)
 
     assert resp['Item']['email'] == EMAIL
     spouse_first_name_detail = resp['Item']['spouse_info_first_name']
