@@ -1,14 +1,15 @@
 ## Project Setup
-- Make sure you have valid aws credentials in `~/.aws/credentials`
-- Have an s3 bucket handy
+- Make sure you have valid aws credentials and config in `~/.aws/credentials` and `~/.aws/config`
+- Have an s3 bucket handy - create your own for unit tests - call it what you want
 
 `vagrant up`
 
-- if the last line fails, then ssh into vagrant and in the `/vagrant` directory run:
- `export PIPENV_VENV_IN_PROJECT=1 && python3 -m pipenv install --skip-lock` 
+## Add environment variables
+- set USER_FILES_BUCKET to = the name of the s3 bucket you created
 
 ## Test
-- `pipenv run pytest`
+-  Use pytest
+    - recommed using Pycharm instead of command line (you'll have an easier time setting environment variables and debugging)
 
 ## Build
 - use python-lambda
