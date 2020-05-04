@@ -57,6 +57,7 @@ def test_update_details_non_list_value(clear_data):
     SECOND_VAL_TO_UPDATE = 'Yentah'
     second_event_body = {
         "action": "update-details",
+        "application_uuid":APPLICATION_UUID,
         "key_to_update": "spouse_info_first_name",
         "value_to_update": {
             "value": SECOND_VAL_TO_UPDATE
@@ -64,7 +65,7 @@ def test_update_details_non_list_value(clear_data):
     }
 
     update_details(EMAIL, second_event_body)
-    resp2 = get_details(EMAIL)
+    resp2 = get_details(EMAIL,APPLICATION_UUID)
 
     assert resp['Item']['email'] == EMAIL
     spouse_first_name_detail2 = resp2['Item']['spouse_info_first_name']
@@ -104,11 +105,12 @@ def test_update_details_list_value(clear_data):
     event_body = {
         "action": "update-details",
         "key_to_update": "contacts",
-        "value_to_update": VAL_TO_UPDATE
+        "value_to_update": VAL_TO_UPDATE,
+        "application_uuid":APPLICATION_UUID
     }
 
     update_details(EMAIL, event_body)
-    resp = get_details(EMAIL)
+    resp = get_details(EMAIL,APPLICATION_UUID)
 
     resp_contacts = resp['Item']['contacts']
 
@@ -134,11 +136,12 @@ def test_update_details_list_value(clear_data):
     event_body_2 = {
         "action": "update-details",
         "key_to_update": "contacts",
-        "value_to_update": VAL_TO_UPDATE_2
+        "value_to_update": VAL_TO_UPDATE_2,
+        "application_uuid":APPLICATION_UUID
     }
 
     update_details(EMAIL, event_body_2)
-    resp2 = get_details(EMAIL)
+    resp2 = get_details(EMAIL,APPLICATION_UUID)
 
     resp_contacts2 = resp2['Item']['contacts']
 
@@ -152,7 +155,8 @@ def test_file_upload(clear_data, clean_bucket):
         'file_name': 'the_very_very_awesomely_cool_file.jpg',
         'document_type': 'birth_certificate',
         'associated_medicaid_detail_uuid': '54321',
-        'file_contents':'I was born way back in 1842'
+        'file_contents':'I was born way back in 1842',
+        "application_uuid":APPLICATION_UUID
     }
 
     upload_file(EMAIL,event_body_1)
@@ -161,12 +165,13 @@ def test_file_upload(clear_data, clean_bucket):
         'file_name': 'muncatcher_passport.jpg',
         'document_type': 'passport',
         'associated_medicaid_detail_uuid': '12345',
-        'file_contents':'Appears to be blank'
+        'file_contents':'Appears to be blank',
+        "application_uuid":APPLICATION_UUID
     }
 
     upload_file(EMAIL, event_body_2)
 
-    resp = get_details(EMAIL)
+    resp = get_details(EMAIL,APPLICATION_UUID)
 
     document_resp = resp['Item']['documents']
 

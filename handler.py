@@ -250,12 +250,14 @@ def upload_file(user_email, event_body):
         return missing_file_contents
 
     full_file_name = f'{user_email}/{application_uuid}/{file_name}'
-    bucket_location = s3.Object(BUCKET_NAME,
+    if not IS_TEST:
+        bucket_location = s3.Object(BUCKET_NAME,
                                 full_file_name
                                 #metadata={'uuid': new_uuid}
                                 ).put(Body=file_contents)
     # s3.Object(bucket_name, "binyomin/test/tx").put(Body="this is just a test.  Please remain calm.")
-
+    else:
+        bucket_location = 'im not telling'
     incoming_file_info = {
         'associated_medicaid_detail_uuid': associated_medicaid_detail_uuid,
         'document_type': document_type,
@@ -278,7 +280,8 @@ def upload_file(user_email, event_body):
 
     update_dynamo_event_body = {
         "action": "add_document",
-        "value_to_update": list_of_file_infos
+        "value_to_update": list_of_file_infos,
+        "application_uuid":application_uuid
     }
 
     add_document(user_email, update_dynamo_event_body)
