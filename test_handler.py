@@ -1,4 +1,4 @@
-from handler import update_details, get_details, upload_file, BUCKET_NAME
+from handler import update_details, get_details, upload_file, BUCKET_NAME, get_applications
 import boto3
 import pytest
 
@@ -186,3 +186,6 @@ def test_file_upload(clear_data, clean_bucket):
 
     assert document_resp[0]['s3_location'] is not None
 
+def test_get_applications():
+    resp = get_applications(EMAIL)
+    assert resp == 'howdy'
