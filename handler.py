@@ -45,7 +45,7 @@ table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 
 
 def is_supported_action(action):
-    return action in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE]
+    return action in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE, GET_APPLICATIONS]
 
 
 def get_claims(event_body):
