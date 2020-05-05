@@ -28,10 +28,11 @@ def clear_data():
 
 @pytest.fixture
 def clean_bucket():
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket(BUCKET_NAME)
+    ...
+    #s3 = boto3.resource('s3')
+    #bucket = s3.Bucket(BUCKET_NAME)
     # suggested by Jordon Philips
-    bucket.objects.all().delete()
+    #bucket.objects.all().delete()
 
 
 def test_update_details_non_list_value(clear_data):
