@@ -7,11 +7,9 @@ name = "pypi"
 python-jose = "*"
 requests = "*"
 boto3 = "*"
-pytest = "*"
 
 [dev-packages]
 boto3 = "*"
-python-lambda = "*"
 pyyaml = "*"
 pipfile-requirements = "*"
 click = "*"
