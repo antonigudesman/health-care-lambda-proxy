@@ -6,7 +6,6 @@ name = "pypi"
 [packages]
 python-jose = "*"
 requests = "*"
-boto3 = "*"
 
 [dev-packages]
 boto3 = "*"
