@@ -1,3 +1,7 @@
+import requests
+from jose import jwt, jwk
+from jose.utils import base64url_decode
+
 def get_hmac_key(token: str, jwks):
     kid = jwt.get_unverified_header(token).get("kid")
     for key in jwks.get("keys", []):
@@ -19,7 +23,7 @@ def verify_jwt(token: str, jwks) -> bool:
 
     return hmac_key.verify(message.encode(), decoded_signature)
 
-def get_jwks():
+def get_jwks(jwks_url):
     return requests.get(
-        f"https://cognito-idp.us-east-1.amazonaws.com/us-east-1_IiYvInxsJ/.well-known/jwks.json"
+        jwks_url
     ).json()

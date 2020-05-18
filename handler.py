@@ -1,12 +1,10 @@
+import logging
 from datetime import datetime
 
 import boto3
 import json
 import os
-import requests
 from jose import jwt, jwk
-from jose.utils import base64url_decode
-import datetime
 from boto3.dynamodb.conditions import Key
 from jwt_utils import get_jwks, verify_jwt
 from medicaid_detail_utils import MedicaidDetail, convert_to_medicaid_detail, convert_to_medicaid_details_list, \
@@ -17,6 +15,10 @@ from response_helpers import response_headers, missing_file_contents, \
 
 BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
 IS_TEST = os.environ.get('IS_TEST', True)
+DEV_JWKS_URL = 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_c1urqyqMM/.well-known/jwks.json'
+JWKS_URL = os.environ.get('JWKS_URL', DEV_JWKS_URL)
+if IS_TEST == 'False':
+    IS_TEST = False
 s3 = boto3.resource('s3')
 
 """
@@ -49,7 +51,7 @@ def is_supported_action(action):
 
 
 def get_claims(event_body):
-    jwks = get_jwks()
+    jwks = get_jwks(JWKS_URL)
     id_token = event_body['id_token']
     if not verify_jwt(id_token, jwks):
         raise InvalidTokenError
@@ -88,7 +90,8 @@ def handler(event, context):
         res_body = route_based_on_action(action, event_body, user_email)
 
     except Exception as err:
-        print(str(err))
+        logger  = logging.getLogger()
+        logger.exception(str(err))
         return {
             "statusCode": 500,
             "headers": response_headers,
