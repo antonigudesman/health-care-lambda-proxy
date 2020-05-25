@@ -38,6 +38,7 @@ GET_APPLICATIONS = 'get-applications'
 GET_DETAILS = 'get-details'
 GET_FILE = 'get-file'
 UPDATE_DETAILS = 'update-details'
+UPDATE_RECORD = 'update-user-info'
 UPLOAD_FILE = 'upload-file'
 
 endpoint_url = 'http://localhost:8000' if IS_TEST else None
@@ -47,7 +48,7 @@ table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 
 
 def is_supported_action(action):
-    return action in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE, GET_APPLICATIONS]
+    return action in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE, GET_APPLICATIONS, UPDATE_RECORD]
 
 
 def get_claims(event_body):
@@ -128,6 +129,10 @@ def route_based_on_action(action, event_body, user_email):
 
     elif action == GET_FILE:
         ...
+
+    elif action == UPDATE_RECORD:
+        update_details(user_email, event_body)
+        return get_details(user_email, application_uuid)
 
     elif action == UPLOAD_FILE:
         upload_file(user_email, event_body)

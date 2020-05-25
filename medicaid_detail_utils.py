@@ -12,6 +12,16 @@ class MedicaidDetail:
         self.created_date = created_date
         self.updated_date = updated_date
         self.value = value
+        self.type = 'medicaid_detail'
+
+
+class UserInfo:
+    def __init__(self,  value,  updated_date, the_uuid=None, created_date=None):
+        self.created_date = created_date
+        self.updated_date = updated_date
+        self.value = value
+        self.type = 'user_info'
+
 
 class FileInfo:
     def __init__(self, document_type, document_name, s3_location,  associated_medicaid_detail_uuid, the_uuid):
