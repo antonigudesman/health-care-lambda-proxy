@@ -16,7 +16,7 @@ class MedicaidDetail:
 
 
 class UserInfo:
-    def __init__(self,  value,  updated_date, the_uuid=None, created_date=None):
+    def __init__(self,  value,  updated_date, created_date=None):
         self.created_date = created_date
         self.updated_date = updated_date
         self.value = value

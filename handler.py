@@ -1,17 +1,23 @@
+import os
+import json
+import boto3
 import logging
+
 from datetime import datetime
 
-import boto3
-import json
-import os
 from jose import jwt, jwk
 from boto3.dynamodb.conditions import Key
 from jwt_utils import get_jwks, verify_jwt
-from medicaid_detail_utils import MedicaidDetail, convert_to_medicaid_detail, convert_to_medicaid_details_list, \
-    create_uuid, FileInfo
-from response_helpers import response_headers, missing_file_contents, \
-    missing_file_name, expired_id_token, invalid_token, forbidden_action, options_response, \
-    InvalidTokenError, ExpiredTokenError
+
+from medicaid_detail_utils import (
+    MedicaidDetail, convert_to_medicaid_detail, convert_to_medicaid_details_list,
+    create_uuid, FileInfo, UserInfo
+)
+from response_helpers import (
+    response_headers, missing_file_contents, missing_file_name, expired_id_token,
+    invalid_token, forbidden_action, options_response, InvalidTokenError,
+    ExpiredTokenError
+)
 
 BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
 IS_TEST = os.environ.get('IS_TEST', True)
@@ -122,7 +128,7 @@ def route_based_on_action(action, event_body, user_email):
 
     elif action == GET_APPLICATIONS:
         return get_applications(user_email)
-        
+
     elif action == UPDATE_DETAILS:
         update_details(user_email, event_body)
         return get_details(user_email, application_uuid)
@@ -131,7 +137,7 @@ def route_based_on_action(action, event_body, user_email):
         ...
 
     elif action == UPDATE_RECORD:
-        update_details(user_email, event_body)
+        update_user_info(user_email, event_body)
         return get_details(user_email, application_uuid)
 
     elif action == UPLOAD_FILE:
@@ -153,6 +159,33 @@ def is_list_type(key_to_update):
 def get_db_value(email, key_to_update, application_uuid):
     return get_details(email, application_uuid)['Item'].get(key_to_update, None)
 
+
+def update_user_info(email, event_body):
+    print(str(event_body))
+    key_to_update = event_body['key_to_update']
+    value_to_update = event_body['value_to_update']
+    application_uuid = event_body['application_uuid']
+
+    val_from_db = get_db_value(email, key_to_update, application_uuid)
+
+    now = datetime.datetime.now().isoformat()
+    user_info = UserInfo(updated_date=now, value=value_to_update['value'])
+    user_info.created_date = val_from_db['created_date'] if val_from_db else now
+
+    resp = table.update_item(
+        Key={'email': email, 'application_uuid': application_uuid},
+        ExpressionAttributeNames={
+            "#the_key": key_to_update
+        },
+        # Expression attribute values specify placeholders for attribute values to use in your update expressions.
+        ExpressionAttributeValues={
+            ":val_to_update": user_info.__dict__,
+        },
+        # UpdateExpression declares the updates we want to perform on our item.
+        # For more details on update expressions, see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
+        UpdateExpression="SET #the_key = :val_to_update"
+    )
+    return resp
 
 def update_details(email, event_body):
     print(str(event_body))
