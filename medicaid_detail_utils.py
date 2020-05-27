@@ -48,7 +48,7 @@ def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db
     medicaid_details_to_insert = []
     for detail_item_to_update in value_to_update:
 
-        medicaid_detail = MedicaidDetail(updated_date=now, value=detail_item_to_update['value'])
+        medicaid_detail = MedicaidDetail(updated_date=now, value=detail_item_to_update)
 
         if 'uuid' in detail_item_to_update:
             the_uuid = detail_item_to_update['uuid']
@@ -70,7 +70,7 @@ def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db
 
 def convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db):
     now = datetime.datetime.now().isoformat()
-    medicaid_detail = MedicaidDetail(updated_date=now, value=value_to_update['value'])
+    medicaid_detail = MedicaidDetail(updated_date=now, value=value_to_update)
     if val_from_db:
         medicaid_detail.uuid = val_from_db['uuid']
         medicaid_detail.created_date = val_from_db['created_date']

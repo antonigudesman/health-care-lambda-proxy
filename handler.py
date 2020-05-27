@@ -32,7 +32,7 @@ Request body should be like the following
 {
     "action": "update-details",
     "key_to_update": "favorite_drink",
-    "value_to_update": "{"value": "lemonade"}"
+    "value_to_update": "lemonade"
 }
 """
 
@@ -168,9 +168,13 @@ def update_user_info(email, event_body):
 
     val_from_db = get_db_value(email, key_to_update, application_uuid)
 
-    now = datetime.datetime.now().isoformat()
-    user_info = UserInfo(updated_date=now, value=value_to_update['value'])
-    user_info.created_date = val_from_db['created_date'] if val_from_db else now
+    now = datetime.now().isoformat()
+    user_info = UserInfo(updated_date=now, value=value_to_update)
+
+    if val_from_db and 'created_date' in val_from_db:
+        user_info.created_date = val_from_db['created_date']
+    else:
+        user_info.created_date = now
 
     resp = table.update_item(
         Key={'email': email, 'application_uuid': application_uuid},
