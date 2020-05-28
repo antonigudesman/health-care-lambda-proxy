@@ -204,8 +204,7 @@ def update_details(email, event_body):
     value_to_update_medicaid_detail_format = None
 
     if is_list_type(key_to_update):
-        value_to_update_medicaid_detail_format = convert_to_medicaid_details_list(key_to_update, value_to_update,
-                                                                                  val_from_db)
+        value_to_update_medicaid_detail_format = convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db)
     else:
         value_to_update_medicaid_detail_format = convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db)
 

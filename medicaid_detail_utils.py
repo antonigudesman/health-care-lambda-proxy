@@ -39,10 +39,6 @@ def create_uuid():
 def convert_to_medicaid_details_list(key_to_update, value_to_update, val_from_db):
     dict_of_db_vals = {item['uuid']: item for item in val_from_db} if val_from_db else {}
 
-    # dict_by_uuid = {}  # {'u8982-w98rw9r': {theitemfromdb}}
-    # for medicaid_detail in db_list:
-    #     dict_by_uuid[medicaid_detail['uuid']] = medicaid_detail
-
     now = datetime.datetime.now().isoformat()
 
     medicaid_details_to_insert = []
