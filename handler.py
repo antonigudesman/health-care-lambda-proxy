@@ -302,11 +302,12 @@ def upload_file(user_email, event_body):
     # s3.Object(bucket_name, "binyomin/test/tx").put(Body="this is just a test.  Please remain calm.")
     else:
         bucket_location = 'im not telling'
+
     incoming_file_info = {
         'associated_medicaid_detail_uuid': associated_medicaid_detail_uuid,
         'document_type': document_type,
         'document_name': file_name,
-        's3_location': bucket_location
+        's3_location': f'https://{BUCKET_NAME}.s3.amazonaws.com/{full_file_name}'
     }
 
     val_from_db = get_db_value(user_email, 'documents', application_uuid)
