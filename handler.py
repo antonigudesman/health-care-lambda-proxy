@@ -1,10 +1,11 @@
 import os
 import json
-import boto3
+import base64
 import logging
 
 from datetime import datetime
 
+import boto3
 from jose import jwt, jwk
 from boto3.dynamodb.conditions import Key
 from jwt_utils import get_jwks, verify_jwt
@@ -145,7 +146,8 @@ def route_based_on_action(action, event_body, user_email):
         return get_details(user_email, application_uuid)
 
     elif action == DELETE_FILE:
-        ...
+        delete_file(user_email, event_body, application_uuid)
+        return get_details(user_email, application_uuid)
 
 
 def is_list_type(key_to_update):
@@ -190,6 +192,7 @@ def update_user_info(email, event_body):
         UpdateExpression="SET #the_key = :val_to_update"
     )
     return resp
+
 
 def update_details(email, event_body):
     print(str(event_body))
@@ -290,16 +293,15 @@ def upload_file(user_email, event_body):
 
     if not file_name:
         return missing_file_name
-    if not file_contents:
+    if not file_contents or file_contents == 'data:':
         return missing_file_contents
 
-    full_file_name = f'{user_email}/{application_uuid}/{file_name}'
+    idx = file_contents.find(';base64,')
+    file_contents = file_contents[idx+8:]
+    full_file_name = f'{user_email}/{application_uuid}/{document_type}/{file_name}'
+
     if not IS_TEST:
-        bucket_location = s3.Object(BUCKET_NAME,
-                                full_file_name
-                                #metadata={'uuid': new_uuid}
-                                ).put(Body=file_contents)
-    # s3.Object(bucket_name, "binyomin/test/tx").put(Body="this is just a test.  Please remain calm.")
+        bucket_location = s3.Object(BUCKET_NAME, full_file_name).put(Body=base64.b64decode(file_contents))
     else:
         bucket_location = 'im not telling'
 
@@ -332,15 +334,18 @@ def upload_file(user_email, event_body):
     add_document(user_email, update_dynamo_event_body)
 
 
-def delete_file(user_email, document_uuid, application_uuid):
-    delete_document_info_from_database(user_email=user_email, doc_uuid=document_uuid, application_uuid=application_uuid)
-    #delete_file_from_bucket(user_email, the_uuid)
+def delete_file(user_email, event_body, application_uuid):
+    delete_document_info_from_database(user_email, event_body, application_uuid)
+    # delete_file_from_bucket(user_email, the_uuid)
 
 
-def delete_document_info_from_database(user_email, doc_uuid, application_uuid):
+def delete_document_info_from_database(user_email, event_body, application_uuid):
     documents = get_db_value(user_email, 'documents', application_uuid)
-    doc_to_delete_index = (idx for idx, val in documents if val.uuid == doc_uuid)[0]
-    del documents[doc_to_delete_index]
+
+    file_name = event_body['file_name']
+    document_type = event_body['document_type']
+
+    clean_documents = [doc for doc in documents if doc['document_name'] != file_name or doc['document_type'] != document_type]
 
     resp = table.update_item(
         Key={'email': user_email, 'application_uuid': application_uuid},
@@ -349,11 +354,11 @@ def delete_document_info_from_database(user_email, doc_uuid, application_uuid):
         },
         # Expression attribute values specify placeholders for attribute values to use in your update expressions.
         ExpressionAttributeValues={
-            ":val_to_update": documents
+            ":val_to_update": clean_documents
         },
         # UpdateExpression declares the updates we want to perform on our item.
         # For more details on update expressions, see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
         UpdateExpression="SET #the_key = :val_to_update"
     )
-    return resp
 
+    return resp
