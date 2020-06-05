@@ -17,7 +17,7 @@ from medicaid_detail_utils import (
 from response_helpers import (
     response_headers, missing_file_contents, missing_file_name, expired_id_token,
     invalid_token, forbidden_action, options_response, InvalidTokenError,
-    ExpiredTokenError
+    ExpiredTokenError, missing_files
 )
 
 BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
@@ -71,14 +71,23 @@ def get_claims(event_body):
     return claims
 
 
+def update_dynamodb(email, application_uuid, key, val):
+    resp = table.update_item(
+        Key={'email': email, 'application_uuid': application_uuid},
+        ExpressionAttributeNames={ "#the_key": key },
+        ExpressionAttributeValues={ ":val_to_update": val },
+        UpdateExpression="SET #the_key = :val_to_update"
+    )
+
+    return resp
+
+
 def handler(event, context):
     try:
         print(str(event))
 
         if event['httpMethod'] == 'OPTIONS':
             return options_response
-
-        #   ------------------  validations  ---------------------------------------------
 
         event_body = json.loads(event['body'])
         action = event_body['action']
@@ -91,8 +100,6 @@ def handler(event, context):
             return invalid_token
         except ExpiredTokenError:
             return expired_id_token
-
-        #  ----------- end of validation - let's actually do something now   ----------------
 
         user_email = claims["cognito:username"]
         res_body = route_based_on_action(action, event_body, user_email)
@@ -109,7 +116,6 @@ def handler(event, context):
     return {
         "statusCode": 200,
         "headers": response_headers,
-        #"body": json.dumps({"success": True, "medicaid_details": medicaid_details})
         "body": json.dumps(res_body)
     }
 
@@ -178,19 +184,8 @@ def update_user_info(email, event_body):
     else:
         user_info.created_date = now
 
-    resp = table.update_item(
-        Key={'email': email, 'application_uuid': application_uuid},
-        ExpressionAttributeNames={
-            "#the_key": key_to_update
-        },
-        # Expression attribute values specify placeholders for attribute values to use in your update expressions.
-        ExpressionAttributeValues={
-            ":val_to_update": user_info.__dict__,
-        },
-        # UpdateExpression declares the updates we want to perform on our item.
-        # For more details on update expressions, see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
-        UpdateExpression="SET #the_key = :val_to_update"
-    )
+    resp = update_dynamodb(email, application_uuid, key_to_update, user_info.__dict__)
+
     return resp
 
 
@@ -211,43 +206,8 @@ def update_details(email, event_body):
     else:
         value_to_update_medicaid_detail_format = convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db)
 
-    # The BatchWriteItem API allows us to write multiple items to a table in one request.
-    resp = table.update_item(
-        Key={'email': email, 'application_uuid': application_uuid},
-        ExpressionAttributeNames={
-            "#the_key": key_to_update
-        },
-        # Expression attribute values specify placeholders for attribute values to use in your update expressions.
-        ExpressionAttributeValues={
-            ":val_to_update": value_to_update_medicaid_detail_format,
-        },
-        # UpdateExpression declares the updates we want to perform on our item.
-        # For more details on update expressions, see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
-        UpdateExpression="SET #the_key = :val_to_update"
-    )
-    return resp
+    resp = update_dynamodb(email, application_uuid, key_to_update, value_to_update_medicaid_detail_format)
 
-
-def add_document(email, event_body):
-    print(str(event_body))
-    key_to_update = 'documents'
-    all_documents = event_body['value_to_update']
-    application_uuid = event_body['application_uuid']
-
-    # The BatchWriteItem API allows us to write multiple items to a table in one request.
-    resp = table.update_item(
-        Key={'email': email, 'application_uuid': application_uuid},
-        ExpressionAttributeNames={
-            "#the_key": key_to_update
-        },
-        # Expression attribute values specify placeholders for attribute values to use in your update expressions.
-        ExpressionAttributeValues={
-            ":val_to_update": all_documents
-        },
-        # UpdateExpression declares the updates we want to perform on our item.
-        # For more details on update expressions, see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
-        UpdateExpression="SET #the_key = :val_to_update"
-    )
     return resp
 
 
@@ -282,56 +242,46 @@ def upload_file(user_email, event_body):
     :param event_body:
     :return:
     """
-
-    new_uuid = create_uuid()
-
-    file_name = event_body['file_name']
-    file_contents = event_body['file_contents']
-    document_type = event_body['document_type']
     associated_medicaid_detail_uuid = event_body['associated_medicaid_detail_uuid']
     application_uuid = event_body['application_uuid']
+    files = event_body['files']
 
-    if not file_name:
-        return missing_file_name
-    if not file_contents or file_contents == 'data:':
-        return missing_file_contents
+    if not files:
+        return missing_files
 
-    idx = file_contents.find(';base64,')
-    file_contents = file_contents[idx+8:]
-    full_file_name = f'{user_email}/{application_uuid}/{document_type}/{file_name}'
+    documents = get_db_value(user_email, 'documents', application_uuid) or []
 
-    if not IS_TEST:
-        bucket_location = s3.Object(BUCKET_NAME, full_file_name).put(Body=base64.b64decode(file_contents))
-    else:
-        bucket_location = 'im not telling'
+    for file in files:
+        file_name = file['file_name']
+        file_contents = file['file_contents']
+        document_type = file['document_type']
 
-    incoming_file_info = {
-        'associated_medicaid_detail_uuid': associated_medicaid_detail_uuid,
-        'document_type': document_type,
-        'document_name': file_name,
-        's3_location': f'https://{BUCKET_NAME}.s3.amazonaws.com/{full_file_name}'
-    }
+        if not file_name:
+            return missing_file_name
 
-    val_from_db = get_db_value(user_email, 'documents', application_uuid)
+        if not file_contents or file_contents == 'data:':
+            return missing_file_contents
 
-    file_info = FileInfo(s3_location=incoming_file_info['s3_location'],
-                         document_name=incoming_file_info['document_name'],
-                         document_type=incoming_file_info['document_type'],
-                         associated_medicaid_detail_uuid=incoming_file_info['associated_medicaid_detail_uuid'],
-                         the_uuid=new_uuid
-                         )
+        # remove base64 prefix for correct upload to s3.
+        idx = file_contents.find(';base64,')
+        file_contents = file_contents[idx+8:]
+        full_file_name = f'{user_email}/{application_uuid}/{document_type}/{file_name}'
 
-    list_of_file_infos = val_from_db.copy() if val_from_db else []
+        s3.Object(BUCKET_NAME, full_file_name).put(Body=base64.b64decode(file_contents))
+        s3_location = f'https://{BUCKET_NAME}.s3.amazonaws.com/{full_file_name}'
 
-    list_of_file_infos.append(file_info.__dict__)
+        file_info = FileInfo(s3_location=s3_location,
+                             document_name=file_name,
+                             document_type=document_type,
+                             associated_medicaid_detail_uuid=associated_medicaid_detail_uuid,
+                             the_uuid=create_uuid()
+                             )
 
-    update_dynamo_event_body = {
-        "action": "add_document",
-        "value_to_update": list_of_file_infos,
-        "application_uuid":application_uuid
-    }
+        documents.append(file_info.__dict__)
 
-    add_document(user_email, update_dynamo_event_body)
+    resp = update_dynamodb(email, application_uuid, 'documents', documents)
+
+    return resp
 
 
 def delete_file(user_email, event_body, application_uuid):
@@ -347,18 +297,6 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
 
     clean_documents = [doc for doc in documents if doc['document_name'] != file_name or doc['document_type'] != document_type]
 
-    resp = table.update_item(
-        Key={'email': user_email, 'application_uuid': application_uuid},
-        ExpressionAttributeNames={
-            "#the_key": 'documents'
-        },
-        # Expression attribute values specify placeholders for attribute values to use in your update expressions.
-        ExpressionAttributeValues={
-            ":val_to_update": clean_documents
-        },
-        # UpdateExpression declares the updates we want to perform on our item.
-        # For more details on update expressions, see https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.UpdateExpressions.html
-        UpdateExpression="SET #the_key = :val_to_update"
-    )
+    resp = update_dynamodb(email, application_uuid, 'documents', clean_documents)
 
     return resp
