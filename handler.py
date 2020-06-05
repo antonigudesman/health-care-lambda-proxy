@@ -288,7 +288,7 @@ def upload_file(user_email, event_body):
 
         documents.append(file_info.__dict__)
 
-    resp = update_dynamodb(email, application_uuid, 'documents', documents)
+    resp = update_dynamodb(user_email, application_uuid, 'documents', documents)
 
     return resp
 
@@ -306,6 +306,6 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
 
     clean_documents = [doc for doc in documents if doc['document_name'] != file_name or doc['document_type'] != document_type]
 
-    resp = update_dynamodb(email, application_uuid, 'documents', clean_documents)
+    resp = update_dynamodb(user_email, application_uuid, 'documents', clean_documents)
 
     return resp
