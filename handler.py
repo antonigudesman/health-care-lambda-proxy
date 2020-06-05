@@ -144,7 +144,16 @@ def route_based_on_action(action, event_body, user_email):
 
 def is_list_type(key_to_update):
     array_types = [
-        'contacts', 'previous_addresses', 'documents'
+        'contacts',
+        'previous_addresses',
+        'documents',
+        'general-vehicles',
+        'employment_income-income_employment_details',
+        'insurance_policies-insurance_policies_details',
+        'general-properties',
+        'general-property_proceeds',
+        'financials-account_details',
+        'financials-life_insurance_stocks_details'
     ]
 
     return key_to_update in array_types
