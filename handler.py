@@ -244,6 +244,7 @@ def upload_file(user_email, event_body):
     """
     associated_medicaid_detail_uuid = event_body['associated_medicaid_detail_uuid']
     application_uuid = event_body['application_uuid']
+    document_type = event_body['document_type']
     files = event_body['files']
 
     if not files:
@@ -254,7 +255,6 @@ def upload_file(user_email, event_body):
     for file in files:
         file_name = file['file_name']
         file_contents = file['file_contents']
-        document_type = file['document_type']
 
         if not file_name:
             return missing_file_name
