@@ -13,6 +13,7 @@ pyyaml = "*"
 pipfile-requirements = "*"
 click = "*"
 pytest = "*"
+v = {editable = true,version = "*"}
 
 [requires]
 python_version = "3.7"
