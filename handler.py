@@ -128,7 +128,7 @@ def get_applications(user_email):
 
 
 def route_based_on_action(action, event_body, user_email):
-    application_uuid = event_body['application_uuid']
+    application_uuid = event_body['application_uuid'] if action != GET_APPLICATIONS else None
 
     if action == GET_DETAILS:
         return get_details(user_email, application_uuid)
