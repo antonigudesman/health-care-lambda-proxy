@@ -47,6 +47,7 @@ GET_FILE = 'get-file'
 UPDATE_DETAILS = 'update-details'
 UPDATE_RECORD = 'update-user-info'
 UPLOAD_FILE = 'upload-file'
+CREATE_PAYMENT_SESSION ='create-payment-session'
 
 endpoint_url = 'http://localhost:8000' if IS_TEST else None
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=endpoint_url)
@@ -55,7 +56,7 @@ table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 
 
 def is_supported_action(action):
-    return action in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE, GET_APPLICATIONS, UPDATE_RECORD]
+    return action in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE, GET_APPLICATIONS, UPDATE_RECORD, CREATE_PAYMENT_SESSION]
 
 
 def get_claims(event_body):
@@ -154,6 +155,9 @@ def route_based_on_action(action, event_body, user_email):
     elif action == DELETE_FILE:
         delete_file(user_email, event_body, application_uuid)
         return get_details(user_email, application_uuid)
+
+    elif action == CREATE_PAYMENT_SESSION:
+        return create_payment_session(event_body, application_uuid)
 
 
 def is_list_type(key_to_update):
@@ -309,3 +313,25 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
     resp = update_dynamodb(user_email, application_uuid, 'documents', clean_documents)
 
     return resp
+
+def create_payment_session(event_body, application_uuid):
+    try:
+        kms = boto3.client('kms')
+        stripe_api_key = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('STRIPE_API_KEY')))['Plaintext'].decode()
+    except Exception as err:
+        stripe_api_key = os.getenv('STRIPE_API_KEY')
+    stripe.api_key = stripe_api_key
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=['card'],
+        line_items=[{
+            'price': event_body['price_id'],
+            'quantity': 1,
+        }],
+        mode='payment',
+        client_reference_id=application_uuid,
+        success_url='https://example.com/success?session_id={CHECKOUT_SESSION_ID}',
+        cancel_url='https://example.com/cancel',
+    )
+    print(session)
+    return session

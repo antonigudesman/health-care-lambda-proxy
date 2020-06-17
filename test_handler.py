@@ -1,6 +1,7 @@
 from handler import update_details, get_details, upload_file, BUCKET_NAME, get_applications
 import boto3
 import pytest
+import stripe
 
 EMAIL = 'jasonh@ltccs.com'
 APPLICATION_UUID = '098029483-sdfsf-234243-009023424'
@@ -189,3 +190,26 @@ def test_file_upload(clear_data, clean_bucket):
 def test_get_applications():
     resp = get_applications(EMAIL)
     assert resp == 'howdy'
+
+def test_create_payment_session():
+    try:
+        kms = boto3.client('kms')
+        stripe_api_key = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('STRIPE_API_KEY')))['Plaintext'].decode()
+    except Exception as err:
+        stripe_api_key = 'sk_test_51GqKSqJZ3xWggisxmSskl1KjsrlbiiYxH0tgv7KqGjHmlXHV5221Kc4sB7AKNfls0wHdQRKNA1sE8vSAXBHv3WiD00Eut0EXCa'
+    stripe.api_key = stripe_api_key
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=['card'],
+        line_items=[{
+            'price': 'price_1GrxPUJZ3xWggisxoZt4yYmW',
+            'quantity': 1,
+        }],
+        mode='payment',
+        client_reference_id=APPLICATION_UUID,
+        success_url='https://localhost:3006/success',
+        cancel_url='https://localhost:3006/cancel',
+    )
+    assert session is not None
+    assert session.client_reference_id == APPLICATION_UUID
+    return session
