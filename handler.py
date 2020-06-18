@@ -2,6 +2,7 @@ import os
 import json
 import base64
 import logging
+import stripe
 
 from datetime import datetime
 
@@ -54,6 +55,12 @@ dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=endp
 
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 
+try:
+    kms = boto3.client('kms')
+    stripe_api_key = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('STRIPE_API_KEY')))['Plaintext'].decode()
+except Exception as err:
+    stripe_api_key = os.getenv('STRIPE_API_KEY')
+stripe.api_key = stripe_api_key
 
 def is_supported_action(action):
     return action in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE, GET_APPLICATIONS, UPDATE_RECORD, CREATE_PAYMENT_SESSION]
@@ -92,7 +99,9 @@ def handler(event, context):
 
         event_body = json.loads(event['body'])
         action = event_body['action']
-
+        sig_header = event.META['HTTP_STRIPE_SIGNATURE']
+        if sig_header:
+            return stripe_webhook(event_body)
         if not is_supported_action(action):
             return forbidden_action
         try:
@@ -315,12 +324,6 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
     return resp
 
 def create_payment_session(event_body, application_uuid):
-    try:
-        kms = boto3.client('kms')
-        stripe_api_key = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('STRIPE_API_KEY')))['Plaintext'].decode()
-    except Exception as err:
-        stripe_api_key = os.getenv('STRIPE_API_KEY')
-    stripe.api_key = stripe_api_key
 
     session = stripe.checkout.Session.create(
         payment_method_types=['card'],
@@ -335,3 +338,37 @@ def create_payment_session(event_body, application_uuid):
     )
     print(session)
     return session
+
+def stripe_webhook(event_body):
+  endpoint_secret = 'whsec_AtRlsWEBpMFNgNAjeqhxhQdDlRqFJOiE'
+  try:
+      event = stripe.Webhook.construct_event(
+          event_body, sig_header, endpoint_secret
+      )
+  except ValueError as e:
+    return HttpResponse(status=400)
+
+  except stripe.error.SignatureVerificationError as e:
+    return HttpResponse(status=400)
+
+  if event.type == 'checkout.session.succeeded':
+    checkout_session = event.data.object
+    print(event)
+    handle_checkout_session_succeeded(checkout_session)
+  else:
+    return HttpResponse(status=400)
+
+  return HttpResponse(status=200)
+
+def handle_checkout_session_succeeded(checkout_session):
+    application_uuid = checkout_session.client_reference_id
+    payment_intent_id = checkout_session.payment_intent_id
+    payment_intent = stripe.PaymentIntent.retrieve(
+        payment_intent_id
+    )
+    payment_info_to_save = {
+        application_uuid: application_uuid,
+        amount_received: payment_intent.amount_received,
+        status: payment_intent.status
+    }
+    print(payment_info_to_save, 'payment info to save')

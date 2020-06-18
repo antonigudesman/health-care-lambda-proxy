@@ -213,3 +213,19 @@ def test_create_payment_session():
     assert session is not None
     assert session.client_reference_id == APPLICATION_UUID
     return session
+
+
+def test_handle_checkout_session_succeeded():
+    try:
+        kms = boto3.client('kms')
+        stripe_api_key = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('STRIPE_API_KEY')))['Plaintext'].decode()
+    except Exception as err:
+        stripe_api_key = 'sk_test_51GqKSqJZ3xWggisxmSskl1KjsrlbiiYxH0tgv7KqGjHmlXHV5221Kc4sB7AKNfls0wHdQRKNA1sE8vSAXBHv3WiD00Eut0EXCa'
+    stripe.api_key = stripe_api_key
+    # application_uuid = checkout_session.client_reference_id
+    # payment_intent_id = checkout_session.payment_intent_id
+    payment_intent = stripe.PaymentIntent.retrieve(
+        'pi_1Gv4jbJZ3xWggisxN0kedb0n'
+    )
+    assert payment_intent.amount == 20000;
+    assert payment_intent.status == "requires_payment_method"
