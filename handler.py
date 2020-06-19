@@ -181,12 +181,19 @@ def is_list_type(key_to_update):
         'contacts',
         'previous_addresses',
         'documents',
+        'general.vehicles',
         'general-vehicles',
+        'employment_income.income_employment_details',
         'employment_income-income_employment_details',
+        'insurance_policies.insurance_policies_details',
         'insurance_policies-insurance_policies_details',
+        'general.properties',
         'general-properties',
+        'general.property_proceeds',
         'general-property_proceeds',
+        'financials.account_details',
         'financials-account_details',
+        'financials.life_insurance_stocks_details',
         'financials-life_insurance_stocks_details'
     ]
 
