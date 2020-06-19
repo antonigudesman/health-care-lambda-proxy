@@ -99,9 +99,16 @@ def handler(event, context):
 
         event_body = json.loads(event['body'])
         action = event_body['action']
-        sig_header = event.META['HTTP_STRIPE_SIGNATURE']
-        if sig_header:
-            return stripe_webhook(event_body)
+        # try:
+        #     event_meta = event.META
+        #     print(event_meta)
+        # except AttributeError:
+        #     pass
+        # if event_meta:
+        #    sig_header = event.META['HTTP_STRIPE_SIGNATURE']
+        #    print(sig_header)
+        # if sig_header:
+        #     return stripe_webhook(event_body)
         if not is_supported_action(action):
             return forbidden_action
         try:
@@ -337,7 +344,7 @@ def create_payment_session(event_body, application_uuid):
         cancel_url='https://example.com/cancel',
     )
     print(session)
-    return session
+    return session.id
 
 def stripe_webhook(event_body):
   endpoint_secret = 'whsec_AtRlsWEBpMFNgNAjeqhxhQdDlRqFJOiE'
