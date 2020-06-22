@@ -230,5 +230,27 @@ def delete_file(event_body: Dict):
     delete_document_info_from_database(user_email, event_body, application_uuid)
 
 
+@router.post('/create-payment-session')
+def create_payment_session(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+    application_uuid = event_body['application_uuid']
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=['card'],
+        line_items=[{
+            'price': event_body['price_id'],
+            'quantity': 1,
+        }],
+        mode='payment',
+        client_reference_id=application_uuid,
+        success_url='https://example.com/success?session_id={CHECKOUT_SESSION_ID}',
+        cancel_url='https://example.com/cancel',
+    )
+    print(session)
+    return session.id
+
+
 app.include_router(router, prefix=API_V1_STR)
 handler = Mangum(app)
