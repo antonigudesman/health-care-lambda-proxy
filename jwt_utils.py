@@ -1,6 +1,8 @@
 import requests
+
 from jose import jwt, jwk
 from jose.utils import base64url_decode
+
 
 def get_hmac_key(token: str, jwks):
     kid = jwt.get_unverified_header(token).get("kid")
@@ -23,7 +25,10 @@ def verify_jwt(token: str, jwks) -> bool:
 
     return hmac_key.verify(message.encode(), decoded_signature)
 
+
 def get_jwks(jwks_url):
-    return requests.get(
+    resp = requests.get(
         jwks_url
     ).json()
+
+    return resp

@@ -7,10 +7,12 @@ name = "pypi"
 python-jose = "*"
 requests = "*"
 stripe = "*"
+mangum = "*"
+fastapi = "*"
 
 [dev-packages]
-boto3 = "*"
-pyyaml = "*"
 pipfile-requirements = "*"
-click = "*"
-pytest = "*"
+v = {editable = true,version = "*"}
+
+[requires]
+python_version = "3.7"

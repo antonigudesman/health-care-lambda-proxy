@@ -1,82 +1,41 @@
 import os
-import json
 import base64
-import logging
-import stripe
-
-from datetime import datetime
+import datetime
 
 import boto3
-from jose import jwt, jwk
-from boto3.dynamodb.conditions import Key
-from jwt_utils import get_jwks, verify_jwt
+import stripe
 
-from medicaid_detail_utils import (
-    MedicaidDetail, convert_to_medicaid_detail, convert_to_medicaid_details_list,
-    create_uuid, FileInfo, UserInfo
-)
+from typing import Dict
+from mangum import Mangum
+from fastapi import APIRouter, FastAPI
+from boto3.dynamodb.conditions import Key
+from fastapi.middleware.cors import CORSMiddleware
+
+from config import API_V1_STR, PROJECT_NAME
+from auth import get_email
+from medicaid_detail_utils import *
 from response_helpers import (
-    response_headers, missing_file_contents, missing_file_name, expired_id_token,
-    invalid_token, forbidden_action, options_response, InvalidTokenError,
-    ExpiredTokenError, missing_files
+    response_headers, missing_file_contents, missing_file_name,
+    invalid_token, forbidden_action, options_response, missing_files
 )
+
+
+app = FastAPI(title=PROJECT_NAME)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+router = APIRouter()
 
 BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
-IS_TEST = os.environ.get('IS_TEST', True)
-DEV_JWKS_URL = 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_c1urqyqMM/.well-known/jwks.json'
-JWKS_URL = os.environ.get('JWKS_URL', DEV_JWKS_URL)
-if IS_TEST == 'False':
-    IS_TEST = False
-s3 = boto3.resource('s3')
 
-"""
-Request body should be like the following
-{
-    "action": "update-details",
-    "key_to_update": "favorite_drink",
-    "value_to_update": "lemonade"
-}
-"""
-
-# boto3 is the AWS SDK library for Python.
-# The "resources" interface allow for a higher-level abstraction than the low-level client interface.
-# More details here: http://boto3.readthedocs.io/en/latest/guide/resources.html
-DELETE_FILE = 'delete-file'
-GET_APPLICATIONS = 'get-applications'
-GET_DETAILS = 'get-details'
-GET_FILE = 'get-file'
-UPDATE_DETAILS = 'update-details'
-UPDATE_RECORD = 'update-user-info'
-UPLOAD_FILE = 'upload-file'
-CREATE_PAYMENT_SESSION ='create-payment-session'
-
-endpoint_url = 'http://localhost:8000' if IS_TEST else None
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=endpoint_url)
-
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
-
-try:
-    kms = boto3.client('kms')
-    stripe_api_key = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('STRIPE_API_KEY')))['Plaintext'].decode()
-except Exception as err:
-    stripe_api_key = os.getenv('STRIPE_API_KEY')
-stripe.api_key = stripe_api_key
-
-def is_supported_action(action):
-    return action in [GET_DETAILS, UPDATE_DETAILS, GET_FILE, UPLOAD_FILE, DELETE_FILE, GET_APPLICATIONS, UPDATE_RECORD, CREATE_PAYMENT_SESSION]
-
-
-def get_claims(event_body):
-    jwks = get_jwks(JWKS_URL)
-    id_token = event_body['id_token']
-    if not verify_jwt(id_token, jwks):
-        raise InvalidTokenError
-
-    claims = jwt.get_unverified_claims(id_token)
-    if datetime.now().timestamp() > claims['exp']:
-        raise ExpiredTokenError
-
-    return claims
+s3 = boto3.resource('s3')
 
 
 def update_dynamodb(email, application_uuid, key, val):
@@ -90,86 +49,20 @@ def update_dynamodb(email, application_uuid, key, val):
     return resp
 
 
-def handler(event, context):
-    try:
-        print(str(event))
-
-        if event['httpMethod'] == 'OPTIONS':
-            return options_response
-
-        event_body = json.loads(event['body'])
-        try:
-            headers = event['headers']
-            stripe_header= headers['Stripe-Signature']
-            return stripe_webhook(event_body, stripe_header)
-        except KeyError:
-            pass
-        action = event_body['action']
-        if not is_supported_action(action):
-            return forbidden_action
-        try:
-            claims = get_claims(event_body)
-        except InvalidTokenError:
-            return invalid_token
-        except ExpiredTokenError:
-            return expired_id_token
-
-        user_email = claims["cognito:username"]
-        res_body = route_based_on_action(action, event_body, user_email)
-
-    except Exception as err:
-        logger  = logging.getLogger()
-        logger.exception(str(err))
-        return {
-            "statusCode": 500,
-            "headers": response_headers,
-            "body": json.dumps({"seems_successful": False})
-        }
-
-    return {
-        "statusCode": 200,
-        "headers": response_headers,
-        "body": json.dumps(res_body)
-    }
-
-
-def get_applications(user_email):
-    response = table.query(
-        KeyConditionExpression=Key('email').eq(user_email)
+def get_details(email, application_uuid):
+    medicaid_details = table.get_item(
+        Key={
+            'email': email, 'application_uuid': application_uuid
+        },
+        ConsistentRead=True,
+        ReturnConsumedCapacity='NONE',
     )
-    return response['Items']
+
+    return medicaid_details
 
 
-def route_based_on_action(action, event_body, user_email):
-    application_uuid = event_body['application_uuid'] if action != GET_APPLICATIONS else None
-
-    if action == GET_DETAILS:
-        return get_details(user_email, application_uuid)
-
-    elif action == GET_APPLICATIONS:
-        return get_applications(user_email)
-
-    elif action == UPDATE_DETAILS:
-        update_details(user_email, event_body)
-        return get_details(user_email, application_uuid)
-
-    elif action == GET_FILE:
-        ...
-
-    elif action == UPDATE_RECORD:
-        update_user_info(user_email, event_body)
-        return get_details(user_email, application_uuid)
-
-    elif action == UPLOAD_FILE:
-        upload_file(user_email, event_body)
-        return get_details(user_email, application_uuid)
-
-    elif action == DELETE_FILE:
-        delete_file(user_email, event_body, application_uuid)
-        return get_details(user_email, application_uuid)
-
-    elif action == CREATE_PAYMENT_SESSION:
-        return create_payment_session(event_body, application_uuid)
+def get_db_value(email, key_to_update, application_uuid):
+    return get_details(email, application_uuid)['Item'].get(key_to_update, None)
 
 
 def is_list_type(key_to_update):
@@ -196,19 +89,57 @@ def is_list_type(key_to_update):
     return key_to_update in array_types
 
 
-def get_db_value(email, key_to_update, application_uuid):
-    return get_details(email, application_uuid)['Item'].get(key_to_update, None)
+def delete_document_info_from_database(user_email, event_body, application_uuid):
+    documents = get_db_value(user_email, 'documents', application_uuid)
+
+    file_name = event_body['file_name']
+    document_type = event_body['document_type']
+
+    clean_documents = [doc for doc in documents if doc['document_name'] != file_name or doc['document_type'] != document_type]
+
+    resp = update_dynamodb(user_email, application_uuid, 'documents', clean_documents)
+
+    return resp
 
 
-def update_user_info(email, event_body):
-    print(str(event_body))
-    key_to_update = event_body['key_to_update']
-    value_to_update = event_body['value_to_update']
+@router.post('/get-applications')
+def get_applications(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    response = table.query(
+        KeyConditionExpression=Key('email').eq(user_email)
+    )
+
+    return response['Items']
+
+
+@router.post('/get-details')
+def _get_details(body: Dict):
+    user_email = get_email(body)
+    if not user_email:
+        return invalid_token
+    application_uuid = body['application_uuid']
+
+    resp = get_details(user_email, application_uuid)
+
+    return resp
+
+
+@router.post('/update-user-info')
+def update_user_info(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
     application_uuid = event_body['application_uuid']
 
-    val_from_db = get_db_value(email, key_to_update, application_uuid)
+    key_to_update = event_body['key_to_update']
+    value_to_update = event_body['value_to_update']
 
-    now = datetime.now().isoformat()
+    val_from_db = get_db_value(user_email, key_to_update, application_uuid)
+
+    now = datetime.datetime.now().isoformat()
     user_info = UserInfo(updated_date=now, value=value_to_update)
 
     if val_from_db and 'created_date' in val_from_db:
@@ -216,21 +147,21 @@ def update_user_info(email, event_body):
     else:
         user_info.created_date = now
 
-    resp = update_dynamodb(email, application_uuid, key_to_update, user_info.__dict__)
+    resp = update_dynamodb(user_email, application_uuid, key_to_update, user_info.__dict__)
 
     return resp
 
 
-def update_details(email, event_body):
-    print(str(event_body))
+@router.post('/update-details')
+def update_details(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+    application_uuid = event_body['application_uuid']
     key_to_update = event_body['key_to_update']
     value_to_update = event_body['value_to_update']
-    application_uuid = event_body['application_uuid']
 
-    # if array -> map to proper medicaid details preserving or creating created date and uuid of what's already in db
-    # else -> update db while keeping or creating created date and uuid
-
-    val_from_db = get_db_value(email, key_to_update, application_uuid)
+    val_from_db = get_db_value(user_email, key_to_update, application_uuid)
     value_to_update_medicaid_detail_format = None
 
     if is_list_type(key_to_update):
@@ -238,44 +169,18 @@ def update_details(email, event_body):
     else:
         value_to_update_medicaid_detail_format = convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db)
 
-    resp = update_dynamodb(email, application_uuid, key_to_update, value_to_update_medicaid_detail_format)
+    resp = update_dynamodb(user_email, application_uuid, key_to_update, value_to_update_medicaid_detail_format)
 
     return resp
 
 
-def get_details(email, application_uuid):
-    medicaid_details = table.get_item(
-        Key={
-            'email': email, 'application_uuid': application_uuid
-        },
-        ConsistentRead=True,
-        ReturnConsumedCapacity='NONE',
-    )
-
-    return medicaid_details
-
-
-def upload_file(user_email, event_body):
-    """
-    need to have multiple documents per medicaid detail
-    documents column
-    [
-        {
-            uuid: 'adslkajlkjlk'  (this will be used by front end for deleting)
-            associated_medicaid_detail_uuid: 'lkjljklkj' (John Doe's uuid)  (This will be useful by front end for retrieving)
-            document_type: 'POA'
-            created_date: '2020....'
-            document_name: 'bobPOA2019.jpg'
-            s3_location: 'sdsdfsdfsdf....'
-        }
-    ]
-
-    :param user_email:
-    :param event_body:
-    :return:
-    """
-    associated_medicaid_detail_uuid = event_body['associated_medicaid_detail_uuid']
+@router.post('/upload-file')
+def upload_file(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
     application_uuid = event_body['application_uuid']
+    associated_medicaid_detail_uuid = event_body['associated_medicaid_detail_uuid']
     document_type = event_body['document_type']
     files = event_body['files']
 
@@ -316,81 +221,14 @@ def upload_file(user_email, event_body):
     return resp
 
 
-def delete_file(user_email, event_body, application_uuid):
+@router.post('/delete-file')
+def delete_file(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+    application_uuid = event_body['application_uuid']
     delete_document_info_from_database(user_email, event_body, application_uuid)
-    # delete_file_from_bucket(user_email, the_uuid)
 
 
-def delete_document_info_from_database(user_email, event_body, application_uuid):
-    documents = get_db_value(user_email, 'documents', application_uuid)
-
-    file_name = event_body['file_name']
-    document_type = event_body['document_type']
-
-    clean_documents = [doc for doc in documents if doc['document_name'] != file_name or doc['document_type'] != document_type]
-
-    resp = update_dynamodb(user_email, application_uuid, 'documents', clean_documents)
-
-    return resp
-
-def create_payment_session(event_body, application_uuid):
-
-    session = stripe.checkout.Session.create(
-        payment_method_types=['card'],
-        line_items=[{
-            'price': event_body['price_id'],
-            'quantity': 1,
-        }],
-        mode='payment',
-        client_reference_id=application_uuid,
-        success_url='https://example.com/success?session_id={CHECKOUT_SESSION_ID}',
-        cancel_url='https://example.com/cancel',
-    )
-    print(session)
-    return session.id
-
-def stripe_webhook(event_body, sig_header):
-  endpoint_secret = 'whsec_AtRlsWEBpMFNgNAjeqhxhQdDlRqFJOiE'
-  event= None
-  try:
-      event = stripe.Webhook.construct_event(
-          event_body, sig_header, endpoint_secret
-      )
-  except ValueError as e:
-    return {
-       "statusCode": 400,
-        "headers": response_headers
-    }
-
-  except stripe.error.SignatureVerificationError as e:
-    return {
-        "statusCode": 400,
-        "headers": response_headers
-    }
-
-  if event.type == 'checkout.session.succeeded':
-    checkout_session = event.data.object
-    handle_checkout_session_succeeded(checkout_session)
-  else:
-      return {
-          "statusCode": 400,
-          "headers": response_headers
-      }
-  return {
-            "statusCode": 200,
-            "headers": response_headers
-  }
-def handle_checkout_session_succeeded(checkout_session):
-    application_uuid = checkout_session.client_reference_id
-    payment_intent_id = checkout_session.payment_intent_id
-    payment_intent = stripe.PaymentIntent.retrieve(
-        payment_intent_id
-    )
-    payment_info_to_save = {
-        application_uuid: application_uuid,
-        amount_received: payment_intent.amount_received,
-        status: payment_intent.status,
-        customer_id: checkout_session.customer,
-        customer_email: checkout_session.customer_email
-    }
-    print(payment_info_to_save, 'payment info to save')
+app.include_router(router, prefix=API_V1_STR)
+handler = Mangum(app)
