@@ -19,11 +19,13 @@ def get_claims(event_body):
     id_token = event_body['id_token']
 
     if not verify_jwt(id_token, jwks):
+        print ('Invalid Token')
         raise InvalidTokenError
 
     claims = jwt.get_unverified_claims(id_token)
 
     if datetime.now().timestamp() > claims['exp']:
+        print ('Expired Token')
         raise ExpiredTokenError
 
     return claims
@@ -34,4 +36,5 @@ def get_email(event_body):
         claims = get_claims(event_body)
         return claims["cognito:username"]
     except Exception as e:
+        print ('Something is wrong with id_token')
         pass

@@ -77,6 +77,8 @@ def update_user_info(event_body: Dict):
         user_info.created_date = now
 
     resp = update_dynamodb(user_email, application_uuid, key_to_update, user_info.__dict__)
+    print ('Update dynamodb result:', resp)
+    resp = get_details(user_email, application_uuid)
 
     return resp
 
@@ -99,6 +101,8 @@ def update_details(event_body: Dict):
         value_to_update_medicaid_detail_format = convert_to_medicaid_detail(key_to_update, value_to_update, val_from_db)
 
     resp = update_dynamodb(user_email, application_uuid, key_to_update, value_to_update_medicaid_detail_format)
+    print ('Update dynamodb result:', resp)
+    resp = get_details(user_email, application_uuid)
 
     return resp
 
@@ -146,6 +150,8 @@ def upload_file(event_body: Dict):
         documents.append(file_info.__dict__)
 
     resp = update_dynamodb(user_email, application_uuid, 'documents', documents)
+    print ('Update dynamodb result:', resp)
+    resp = get_details(user_email, application_uuid)
 
     return resp
 
