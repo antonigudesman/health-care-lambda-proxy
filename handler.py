@@ -98,17 +98,13 @@ def handler(event, context):
             return options_response
 
         event_body = json.loads(event['body'])
+        try:
+            headers = event['headers']
+            stripe_header= headers['Stripe-Signature']
+            return stripe_webhook(event_body, stripe_header)
+        except KeyError:
+            pass
         action = event_body['action']
-        # try:
-        #     event_meta = event.META
-        #     print(event_meta)
-        # except AttributeError:
-        #     pass
-        # if event_meta:
-        #    sig_header = event.META['HTTP_STRIPE_SIGNATURE']
-        #    print(sig_header)
-        # if sig_header:
-        #     return stripe_webhook(event_body)
         if not is_supported_action(action):
             return forbidden_action
         try:
@@ -353,27 +349,37 @@ def create_payment_session(event_body, application_uuid):
     print(session)
     return session.id
 
-def stripe_webhook(event_body):
+def stripe_webhook(event_body, sig_header):
   endpoint_secret = 'whsec_AtRlsWEBpMFNgNAjeqhxhQdDlRqFJOiE'
+  event= None
   try:
       event = stripe.Webhook.construct_event(
           event_body, sig_header, endpoint_secret
       )
   except ValueError as e:
-    return HttpResponse(status=400)
+    return {
+       "statusCode": 400,
+        "headers": response_headers
+    }
 
   except stripe.error.SignatureVerificationError as e:
-    return HttpResponse(status=400)
+    return {
+        "statusCode": 400,
+        "headers": response_headers
+    }
 
   if event.type == 'checkout.session.succeeded':
     checkout_session = event.data.object
-    print(event)
     handle_checkout_session_succeeded(checkout_session)
   else:
-    return HttpResponse(status=400)
-
-  return HttpResponse(status=200)
-
+      return {
+          "statusCode": 400,
+          "headers": response_headers
+      }
+  return {
+            "statusCode": 200,
+            "headers": response_headers
+  }
 def handle_checkout_session_succeeded(checkout_session):
     application_uuid = checkout_session.client_reference_id
     payment_intent_id = checkout_session.payment_intent_id
@@ -383,6 +389,8 @@ def handle_checkout_session_succeeded(checkout_session):
     payment_info_to_save = {
         application_uuid: application_uuid,
         amount_received: payment_intent.amount_received,
-        status: payment_intent.status
+        status: payment_intent.status,
+        customer_id: checkout_session.customer,
+        customer_email: checkout_session.customer_email
     }
     print(payment_info_to_save, 'payment info to save')
