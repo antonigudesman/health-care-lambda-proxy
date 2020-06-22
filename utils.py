@@ -1,6 +1,7 @@
 import os
 
 import boto3
+import stripe
 
 
 BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')

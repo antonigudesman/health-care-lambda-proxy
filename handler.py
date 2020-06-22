@@ -6,8 +6,8 @@ import stripe
 from typing import Dict
 from mangum import Mangum
 from fastapi import APIRouter, FastAPI
-from boto3.dynamodb.conditions import Key
 from fastapi.middleware.cors import CORSMiddleware
+from boto3.dynamodb.conditions import Key
 
 from config import API_V1_STR, PROJECT_NAME
 from auth import get_email
