@@ -64,3 +64,18 @@ missing_file_contents = {
     "headers": response_headers,
     "body": json.dumps({"error": "missing file contents"})
 }
+
+
+invalid_signature = {
+    "statusCode": 400,
+    "headers": response_headers,
+    "body": json.dumps({"error": "invalid stripe signature"})
+}
+
+
+unknown_event_type = {
+    "statusCode": 400,
+    "headers": response_headers,
+    "body": json.dumps({"error": "unknown event type"})
+}
+

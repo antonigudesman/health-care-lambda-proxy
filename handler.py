@@ -5,7 +5,7 @@ import stripe
 
 from typing import Dict
 from mangum import Mangum
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from boto3.dynamodb.conditions import Key
 
@@ -15,7 +15,8 @@ from utils import *
 from medicaid_detail_utils import *
 from response_helpers import (
     response_headers, missing_file_contents, missing_file_name,
-    invalid_token, forbidden_action, options_response, missing_files
+    invalid_token, forbidden_action, options_response, missing_files, 
+    invalid_signature, unknown_event_type
 )
 
 
@@ -29,6 +30,14 @@ app.add_middleware(
 )
 
 router = APIRouter()
+
+
+try:
+    kms = boto3.client('kms')
+    stripe_api_key = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('STRIPE_API_KEY')))['Plaintext'].decode()
+except Exception as err:
+    stripe_api_key = os.getenv('STRIPE_API_KEY')
+stripe.api_key = stripe_api_key
 
 
 @router.post('/get-applications')
@@ -183,9 +192,37 @@ def create_payment_session(event_body: Dict):
         success_url='https://example.com/success?session_id={CHECKOUT_SESSION_ID}',
         cancel_url='https://example.com/cancel',
     )
-    print(session)
     return session.id
 
+
+@router.post('/completed-checkout-session')
+def completed_checkout_session(event_body: Dict, stripe_signature: str = Header(None)):
+    print(event_body)
+    print(stripe_signature)
+    endpoint_secret = 'whsec_AtRlsWEBpMFNgNAjeqhxhQdDlRqFJOiE'
+    try:
+        event = stripe.Webhook.construct_event(
+            event_body, stripe_signature, endpoint_secret
+        )
+    except ValueError as e:
+        return {
+            "statusCode": 400,
+            "headers": response_headers
+        }
+
+    except stripe.error.SignatureVerificationError:
+        return invalid_signature
+
+    if event.type == 'checkout.session.succeeded':
+        checkout_session = event.data.object
+        handle_checkout_session_succeeded(checkout_session)
+    else:
+        return unknown_event_type
+
+    return {
+        "statusCode": 200,
+        "headers": response_headers
+    }
 
 app.include_router(router, prefix=API_V1_STR)
 handler = Mangum(app)

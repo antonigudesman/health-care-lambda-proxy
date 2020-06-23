@@ -75,53 +75,19 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
     return resp
 
 
-def stripe_webhook(event_body, sig_header):
-    endpoint_secret = 'whsec_AtRlsWEBpMFNgNAjeqhxhQdDlRqFJOiE'
-    event= None
-    try:
-        event = stripe.Webhook.construct_event(
-            event_body, sig_header, endpoint_secret
-        )
-    except ValueError as e:
-        return {
-            "statusCode": 400,
-            "headers": response_headers
-        }
-
-    except stripe.error.SignatureVerificationError as e:
-        return {
-            "statusCode": 400,
-            "headers": response_headers
-        }
-
-    if event.type == 'checkout.session.succeeded':
-        checkout_session = event.data.object
-        handle_checkout_session_succeeded(checkout_session)
-    else:
-        return {
-            "statusCode": 400,
-            "headers": response_headers
-        }
-
-    return {
-        "statusCode": 200,
-        "headers": response_headers
-    }
-
-
 def handle_checkout_session_succeeded(checkout_session):
-    application_uuid = checkout_session.client_reference_id
+    #application_uuid = checkout_session.client_reference_id
     payment_intent_id = checkout_session.payment_intent_id
     payment_intent = stripe.PaymentIntent.retrieve(
         payment_intent_id
     )
 
-    payment_info_to_save = {
-        application_uuid: application_uuid,
-        amount_received: payment_intent.amount_received,
-        status: payment_intent.status,
-        customer_id: checkout_session.customer,
-        customer_email: checkout_session.customer_email
-    }
+    # payment_info_to_save = {
+    #     application_uuid: application_uuid,
+    #     amount_received: payment_intent.amount_received,
+    #     status: payment_intent.status,
+    #     customer_id: checkout_session.customer,
+    #     customer_email: checkout_session.customer_email
+    # }
 
-    print(payment_info_to_save, 'payment info to save')
+    print(payment_intent, 'payment info to save')
