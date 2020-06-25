@@ -77,17 +77,9 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
 
 def handle_checkout_session_succeeded(checkout_session):
     #application_uuid = checkout_session.client_reference_id
-    payment_intent_id = checkout_session.payment_intent_id
+    payment_intent_id = checkout_session.payment_intent
     payment_intent = stripe.PaymentIntent.retrieve(
         payment_intent_id
     )
 
-    # payment_info_to_save = {
-    #     application_uuid: application_uuid,
-    #     amount_received: payment_intent.amount_received,
-    #     status: payment_intent.status,
-    #     customer_id: checkout_session.customer,
-    #     customer_email: checkout_session.customer_email
-    # }
-
-    print(payment_intent, 'payment info to save')
+    print(payment_intent)

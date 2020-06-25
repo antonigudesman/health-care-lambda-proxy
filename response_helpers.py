@@ -79,3 +79,9 @@ unknown_event_type = {
     "body": json.dumps({"error": "unknown event type"})
 }
 
+invalid_request = {
+    "statusCode": 400,
+    "headers": response_headers,
+    "body": json.dumps({"error": "invalid request format"})
+}
+

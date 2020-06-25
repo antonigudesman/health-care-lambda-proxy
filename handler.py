@@ -16,7 +16,7 @@ from medicaid_detail_utils import *
 from response_helpers import (
     response_headers, missing_file_contents, missing_file_name,
     invalid_token, forbidden_action, options_response, missing_files, 
-    invalid_signature, unknown_event_type
+    invalid_signature, unknown_event_type, invalid_request
 )
 
 
@@ -196,10 +196,13 @@ def create_payment_session(event_body: Dict):
 
 
 @router.post('/completed-checkout-session')
-def completed_checkout_session(event_body: Dict, stripe_signature: str = Header(None)):
-    print(event_body)
-    print(stripe_signature)
+def completed_checkout_session(request: Request):
     endpoint_secret = 'whsec_AtRlsWEBpMFNgNAjeqhxhQdDlRqFJOiE'
+    try:
+        event_body = request.scope['aws.event']['body']
+        stripe_signature = request.scope['aws.event']['headers']['Stripe-Signature']
+    except KeyError:
+        return invalid_request
     try:
         event = stripe.Webhook.construct_event(
             event_body, stripe_signature, endpoint_secret
@@ -209,11 +212,10 @@ def completed_checkout_session(event_body: Dict, stripe_signature: str = Header(
             "statusCode": 400,
             "headers": response_headers
         }
-
     except stripe.error.SignatureVerificationError:
         return invalid_signature
 
-    if event.type == 'checkout.session.succeeded':
+    if event.type == 'checkout.session.completed':
         checkout_session = event.data.object
         handle_checkout_session_succeeded(checkout_session)
     else:
