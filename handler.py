@@ -180,7 +180,7 @@ def create_payment_session(event_body: Dict):
     if not user_email:
         return invalid_token
     application_uuid = event_body['application_uuid']
-
+    react_app_url = os.getenv('REACT_APP_URL')
     session = stripe.checkout.Session.create(
         payment_method_types=['card'],
         line_items=[{
@@ -189,15 +189,18 @@ def create_payment_session(event_body: Dict):
         }],
         mode='payment',
         client_reference_id=application_uuid,
-        success_url='https://example.com/success?session_id={CHECKOUT_SESSION_ID}',
-        cancel_url='https://example.com/cancel',
+        success_url=f'{react_app_url}/payment/success?sessionId={CHECKOUT_SESSION_ID}',
+        cancel_url=f'{react_app_url}/payment',
     )
     return session.id
 
 
 @router.post('/completed-checkout-session')
 def completed_checkout_session(request: Request):
-    endpoint_secret = 'whsec_AtRlsWEBpMFNgNAjeqhxhQdDlRqFJOiE'
+    try:
+        endpoint_secret = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('WEBHOOK_SECRET')))['Plaintext'].decode()
+    except Exception as e:
+        endpoint_secret = os.getenv('WEBHOOK_SECRET')
     try:
         event_body = request.scope['aws.event']['body']
         stripe_signature = request.scope['aws.event']['headers']['Stripe-Signature']
@@ -216,8 +219,11 @@ def completed_checkout_session(request: Request):
         return invalid_signature
 
     if event.type == 'checkout.session.completed':
-        checkout_session = event.data.object
-        handle_checkout_session_succeeded(checkout_session)
+        try:
+            checkout_session = event.data.object
+            handle_checkout_session_succeeded(checkout_session)
+        except Exception as e:
+            print('Error handling successful checkout session:', e)
     else:
         return unknown_event_type
 
