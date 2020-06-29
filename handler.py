@@ -232,5 +232,34 @@ def completed_checkout_session(request: Request):
         "headers": response_headers
     }
 
+
+@router.post('/get-files')
+def get_files(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+    application_uuid = event_body['application_uuid']
+    uuid = event_body['uuid']
+
+    documents = get_details(user_email, application_uuid)['Item']['documents']
+    resp = []
+    for doc in documents:
+        if doc['associated_medicaid_detail_uuid'] != uuid:
+            continue
+
+        file_name = doc['document_name']
+        full_file_name = f'{user_email}/{application_uuid}/{doc["document_type"]}/{file_name}'
+        image = s3.Object(BUCKET_NAME, full_file_name).get()['Body'].read()
+
+        item = {
+            'document_name': file_name,
+            'image': base64.b64encode(image)
+        }
+
+        resp.append(item)
+
+    return resp
+
+
 app.include_router(router, prefix=API_V1_STR)
 handler = Mangum(app)
