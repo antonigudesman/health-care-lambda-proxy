@@ -51,6 +51,11 @@ missing_files = {
     "body": json.dumps({"error": "missing files"})
 }
 
+max_file_size_exceeded = {
+    "statusCode": 400,
+    "headers": response_headers,
+    "body": json.dumps({"error": "max file size limit exceeded"})
+}
 
 missing_file_name = {
     "statusCode": 400,

@@ -16,7 +16,8 @@ from medicaid_detail_utils import *
 from response_helpers import (
     response_headers, missing_file_contents, missing_file_name,
     invalid_token, forbidden_action, options_response, missing_files, 
-    invalid_signature, unknown_event_type, invalid_request
+    invalid_signature, unknown_event_type, invalid_request,
+    max_file_size_exceeded
 )
 
 
@@ -140,6 +141,9 @@ def upload_file(event_body: Dict):
 
         if not file_contents or file_contents == 'data:':
             return missing_file_contents
+
+        if get_file_size(file_contents) > MAX_FILE_SIZE:
+            return max_file_size_exceeded
 
         # remove base64 prefix for correct upload to s3.
         idx = file_contents.find(';base64,')

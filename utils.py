@@ -9,6 +9,7 @@ BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 s3 = boto3.resource('s3')
+MAX_FILE_SIZE = os.environ.get('MAX_FILE_SIZE', 5)
 
 
 def update_dynamodb(email, application_uuid, key, val):
@@ -83,3 +84,10 @@ def handle_checkout_session_succeeded(checkout_session):
     )
 
     print(payment_intent)
+
+
+def get_file_size(b64string):
+    raw_size = (len(b64string) * 3) / 4 - b64string.count('=', -2)
+    mb_size = raw_size / 1024 / 2014
+
+    return mb_size
