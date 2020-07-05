@@ -1,0 +1,14 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Specification template describing your function.
+Resources:
+  turbocaidproxyspsdev1:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: turbocaid-proxy--sps-dev-1
+      Description: ''
+      Handler: handler.handler
+      MemorySize: 128
+      Role: 'arn:aws:iam::574098343558:role/Turbocaid-Proxy-sps-dev-1'
+      Runtime: python3.7
+      Timeout: 120
