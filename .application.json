@@ -1,0 +1,10 @@
+{
+    "DeploymentMethod": "lambda",
+    "Functions": {
+        "turbocaidproxyspsdev1": {
+            "PhysicalId": {
+                "us-east-1": "turbocaid-proxy--sps-dev1"
+            }
+        }
+    }
+}
