@@ -24,7 +24,8 @@ class UserInfo:
 
 
 class FileInfo:
-    def __init__(self, document_type, document_name, s3_location,  associated_medicaid_detail_uuid, the_uuid):
+    def __init__(self, tags, document_type, document_name, s3_location,  associated_medicaid_detail_uuid, the_uuid):
+        self.tags = tags
         self.associated_medicaid_detail_uuid = associated_medicaid_detail_uuid
         self.document_type= document_type
         self.document_name= document_name

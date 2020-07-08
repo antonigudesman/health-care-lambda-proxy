@@ -12,7 +12,7 @@ fastapi = "*"
 
 [dev-packages]
 pipfile-requirements = "*"
-v = {editable = true,version = "*"}
+click = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.8"

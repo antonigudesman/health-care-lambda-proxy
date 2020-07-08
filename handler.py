@@ -126,6 +126,7 @@ def upload_file(event_body: Dict):
     associated_medicaid_detail_uuid = event_body['associated_medicaid_detail_uuid']
     document_type = event_body['document_type']
     files = event_body['files']
+    
 
     if not files:
         return missing_files
@@ -135,7 +136,7 @@ def upload_file(event_body: Dict):
     for file in files:
         file_name = file['file_name']
         file_contents = file['file_contents']
-
+        tags = file.get('tags', [])
         if not file_name:
             return missing_file_name
 
@@ -157,7 +158,8 @@ def upload_file(event_body: Dict):
                              document_name=file_name,
                              document_type=document_type,
                              associated_medicaid_detail_uuid=associated_medicaid_detail_uuid,
-                             the_uuid=create_uuid()
+                             the_uuid=create_uuid(),
+                             tags=tags
                              )
 
         documents.append(file_info.__dict__)
