@@ -267,5 +267,89 @@ def get_files(event_body: Dict):
     return resp
 
 
+'''
+User management with custom prices
+'''
+@router.post('/get-custom-prices')
+def get_custom_prices(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    resp = custom_price_table.scan()
+
+    return resp
+
+
+@router.post('/get-custom-price')
+def get_custom_price(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    email = event_body['email']
+    resp = get_custom_price_detail(email)
+
+    return resp
+
+
+@router.post('/create-custom-price')
+def create_custom_price(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    email = event_body['email']
+    price = event_body['price']
+    now = datetime.datetime.now().isoformat()
+
+    custom_price_table.put_item(
+        Item={
+            'email': email,
+            'price': price,
+            'updated_by': user_email,
+            'updated_at': now
+        },
+        ReturnValues='NONE'
+    )
+
+    resp = get_custom_price_detail(email)
+
+    return resp
+
+
+@router.post('/update-custom-price')
+def update_custom_price(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    email = event_body['email']
+    price = event_body['price']
+    now = datetime.datetime.now().isoformat()
+
+    update_custom_price_dynamodb(email, 'price', price)
+    update_custom_price_dynamodb(email, 'updated_at', now)
+    update_custom_price_dynamodb(email, 'updated_by', user_email)
+
+    resp = get_custom_price_detail(email)
+
+    return resp
+
+
+@router.post('/delete-custom-price')
+def delete_custom_price(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    email = event_body['email']
+    resp = custom_price_table.delete_item(
+        Key={'email': email}
+    )
+
+    return resp
+
+
 app.include_router(router, prefix=API_V1_STR)
 handler = Mangum(app)
