@@ -8,6 +8,7 @@ BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
 
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
+custom_price_table = dynamodb.Table(os.environ.get('CUSTOM-PRICE-TABLE', 'Turbocaid-custom-price'))
 s3 = boto3.resource('s3')
 MAX_FILE_SIZE = os.environ.get('MAX_FILE_SIZE', 5)
 
@@ -21,6 +22,29 @@ def update_dynamodb(email, application_uuid, key, val):
     )
 
     return resp
+
+
+def update_custom_price_dynamodb(email, key, val):
+    resp = custom_price_table.update_item(
+        Key={'email': email},
+        ExpressionAttributeNames={ "#the_key": key },
+        ExpressionAttributeValues={ ":val_to_update": val },
+        UpdateExpression="SET #the_key = :val_to_update"
+    )
+
+    return resp
+
+
+def get_custom_price_detail(email):
+    record = custom_price_table.get_item(
+        Key={
+            'email': email
+        },
+        ConsistentRead=True,
+        ReturnConsumedCapacity='NONE',
+    )
+
+    return record
 
 
 def get_details(email, application_uuid):
