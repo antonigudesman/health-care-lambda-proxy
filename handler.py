@@ -267,6 +267,20 @@ def get_files(event_body: Dict):
     return resp
 
 
+@router.post('/submit-application')
+def submit_application(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    to_emails = [user_email]
+    body = f'{user_email} submitted.'
+    attachment_string = '\n'.join([','.join(['First', 'Second']), ','.join([1, 2])])
+    resp = send_email('Turbocaid Submit', to_emails, body, attachment_string)
+
+    return resp
+
+
 '''
 User management with custom prices
 '''

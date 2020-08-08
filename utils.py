@@ -1,16 +1,23 @@
 import os
 
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+
 import boto3
 import stripe
 
 
 BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
+MAX_FILE_SIZE = os.environ.get('MAX_FILE_SIZE', 5)
 
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 custom_price_table = dynamodb.Table(os.environ.get('CUSTOM-PRICE-TABLE', 'Turbocaid-custom-price'))
+
 s3 = boto3.resource('s3')
-MAX_FILE_SIZE = os.environ.get('MAX_FILE_SIZE', 5)
+
+ses = boto3.client('ses', region_name='us-east-1')
 
 
 def update_dynamodb(email, application_uuid, key, val):
@@ -115,3 +122,30 @@ def get_file_size(b64string):
     mb_size = raw_size / 1024 / 2014
 
     return mb_size
+
+
+def send_email(subject, to_emails, body, attachment_string):
+    message = MIMEMultipart()
+    message['Subject'] = subject
+    message['From'] = os.environ.get('SENDER_EMAIL', 'ltclakewooddev@gmail.com')
+    message['To'] = ', '.join(to_emails)
+    # message body
+    part = MIMEText(body, 'html')
+    message.attach(part)
+    # attachment
+    if attachment_string:   # if bytestring available
+        part = MIMEApplication(str.encode(attachment_string))
+    else:    # if file provided
+        part = MIMEApplication(open(attachment_file.csv, 'rb').read())
+    part.add_header('Content-Disposition', 'attachment', filename='turbocaid_submit.csv')
+    message.attach(part)
+
+    resp = ses.send_raw_email(
+        Source=message['From'],
+        Destinations=to_emails,
+        RawMessage={
+            'Data': message.as_string()
+        }
+    )
+
+    return resp
