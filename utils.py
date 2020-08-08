@@ -124,28 +124,38 @@ def get_file_size(b64string):
     return mb_size
 
 
-def send_email(subject, to_emails, body, attachment_string):
+def send_email(subject, to_emails, body, attachment_string=None):
     message = MIMEMultipart()
     message['Subject'] = subject
     message['From'] = os.environ.get('SENDER_EMAIL', 'ltclakewooddev@gmail.com')
-    message['To'] = ', '.join(to_emails)
+    message['To'] = to_emails
     # message body
     part = MIMEText(body, 'html')
     message.attach(part)
     # attachment
-    if attachment_string:   # if bytestring available
+    if attachment_string:
         part = MIMEApplication(str.encode(attachment_string))
-    else:    # if file provided
-        part = MIMEApplication(open(attachment_file.csv, 'rb').read())
-    part.add_header('Content-Disposition', 'attachment', filename='turbocaid_submit.csv')
-    message.attach(part)
+        part.add_header('Content-Disposition', 'attachment', filename='turbocaid_submit.csv')
+        message.attach(part)
 
     resp = ses.send_raw_email(
         Source=message['From'],
-        Destinations=to_emails,
+        Destinations=to_emails.split(','),
         RawMessage={
             'Data': message.as_string()
         }
     )
+
+    return resp
+
+
+def build_csv(data):
+    resp = ''
+    for key, val in data.items():
+        if resp:
+            resp += '\n\n\n'
+        resp += key + '\n'
+        for skey, sval in val.items():
+            resp += f'"{skey}","{sval}"\n'
 
     return resp

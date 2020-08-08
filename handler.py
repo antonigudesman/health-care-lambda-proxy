@@ -273,10 +273,12 @@ def submit_application(event_body: Dict):
     if not user_email:
         return invalid_token
 
-    to_emails = [user_email]
-    body = f'{user_email} submitted.'
-    attachment_string = '\n'.join([','.join(['First', 'Second']), ','.join([1, 2])])
-    resp = send_email('Turbocaid Submit', to_emails, body, attachment_string)
+    subject = 'Turbocaid Application Summary'
+    to_emails = os.environ.get('TO_EMAILS', 'jason.5001001@gmail.com')
+    email_body = f'{user_email} submitted.'
+
+    attachment_string = build_csv(event_body['value_to_update'])
+    resp = send_email(subject, to_emails, email_body, attachment_string)
 
     return resp
 
