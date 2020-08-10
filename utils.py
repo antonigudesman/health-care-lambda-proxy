@@ -155,12 +155,11 @@ def build_csv(data):
         if resp:
             resp += '\n' * 3
 
-        if section != 'undefined':
-            resp += section + '\n'
+        resp += section + '\n'
 
         for question, sval in val.items():
-            if sval['val']:
-                val = sval['val']
+            if question != 'undefined':
+                val = sval.get('val') or ''
                 resp += f'"{question}","{val}"\n'
 
             if sval['sublist']:
