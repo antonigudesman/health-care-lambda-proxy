@@ -151,11 +151,21 @@ def send_email(subject, to_emails, body, attachment_string=None):
 
 def build_csv(data):
     resp = ''
-    for key, val in data.items():
+    for section, val in data.items():
         if resp:
-            resp += '\n\n\n'
-        resp += key + '\n'
-        for skey, sval in val.items():
-            resp += f'"{skey}","{sval}"\n'
+            resp += '\n' * 3
+
+        if section != 'undefined':
+            resp += section + '\n'
+
+        for question, sval in val.items():
+            if sval['val']:
+                val = sval['val']
+                resp += f'"{question}","{val}"\n'
+
+            if sval['sublist']:
+                for row in sval['sublist']:
+                    _row = [""] + [f'"{ii}"' for ii in row]
+                    resp += f'{",".join(_row)}\n'
 
     return resp
