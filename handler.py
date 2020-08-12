@@ -280,6 +280,16 @@ def submit_application(event_body: Dict):
     attachment_string = build_csv(event_body['value_to_update'])
     resp = send_email(subject, to_emails, email_body, attachment_string)
 
+    # update submit field
+    application_uuid = event_body['application_uuid']
+    key_to_update = 'submitted'
+    now = datetime.datetime.now().isoformat()
+    user_info = UserInfo(updated_date=now, value=True)
+    val_from_db = get_db_value(user_email, key_to_update, application_uuid)
+    user_info.created_date = val_from_db['created_date'] if val_from_db else now
+
+    update_dynamodb(user_email, application_uuid, key_to_update, user_info.__dict__)
+
     return resp
 
 
