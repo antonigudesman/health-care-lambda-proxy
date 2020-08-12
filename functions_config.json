@@ -1,0 +1,14 @@
+{ 
+  "turbocaid-proxy-dev": { 
+    "s3_bucket": "lambda-source-code-sps-dev-1",
+    "function_name": "turbocaid-proxy--sps-dev-1" 
+  },
+  "turbocaid-proxy-qa": {
+    "s3_bucket": "lambda-source-code-sps-qa-1",
+    "function_name": "turbocaid-proxy--sps-qa-1"
+  },
+  "turbocaid-proxy-prod": {
+    "s3_bucket": "lambda-source-code-sps-prod-1",
+    "function_name": "turbocaid-proxy--sps-prod-1"
+  }
+}

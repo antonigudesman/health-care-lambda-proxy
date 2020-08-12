@@ -6,3 +6,4 @@ dist
 events
 .vagrant
 **__pycache__**
+.aws-sam
