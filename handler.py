@@ -314,11 +314,11 @@ def get_user(event_body: Dict):
         return invalid_token
 
     email = event_body['email']
-    application_uuid = event_body['application_uuid']
+    response = table.query(
+        KeyConditionExpression=Key('email').eq(email)
+    )
 
-    resp = get_details(email, application_uuid)
-
-    return resp
+    return response['Items'][0]
 
 
 '''
