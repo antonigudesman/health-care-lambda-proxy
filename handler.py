@@ -294,6 +294,34 @@ def submit_application(event_body: Dict):
 
 
 '''
+Endpoints for the summary portal
+'''
+@router.post('/get-users')
+def get_users(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    resp = table.scan()
+
+    return resp
+
+
+@router.post('/get-user')
+def get_user(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    email = event_body['email']
+    application_uuid = event_body['application_uuid']
+
+    resp = get_details(email, application_uuid)
+
+    return resp
+
+
+'''
 User management with custom prices
 '''
 @router.post('/get-custom-prices')

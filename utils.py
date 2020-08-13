@@ -13,7 +13,7 @@ MAX_FILE_SIZE = os.environ.get('MAX_FILE_SIZE', 5)
 
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
-custom_price_table = dynamodb.Table(os.environ.get('CUSTOM-PRICE-TABLE', 'Turbocaid-custom-price'))
+custom_price_table = dynamodb.Table(os.environ.get('CUSTOM_PRICE_TABLE', 'TurbocaidCustomPrice-sps-dev-1'))
 
 s3 = boto3.resource('s3')
 
