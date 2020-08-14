@@ -282,9 +282,9 @@ def submit_application(event_body: Dict):
 
     # update submit field
     application_uuid = event_body['application_uuid']
-    key_to_update = 'submitted'
+    key_to_update = 'submitted_date'
     now = datetime.datetime.now().isoformat()
-    user_info = UserInfo(updated_date=now, value=True)
+    user_info = UserInfo(updated_date=now, value=now)
     val_from_db = get_db_value(user_email, key_to_update, application_uuid)
     user_info.created_date = val_from_db['created_date'] if val_from_db else now
 
