@@ -302,6 +302,10 @@ def get_users(event_body: Dict):
     if not user_email:
         return invalid_token
 
+    internal_users = os.getenv('INTERNAL_USERS', '').split(',')
+    if user_email not in internal_users:
+        return invalid_token
+
     resp = table.scan()
 
     return resp
