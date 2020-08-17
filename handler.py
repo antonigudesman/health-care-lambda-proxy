@@ -295,18 +295,29 @@ def submit_application(event_body: Dict):
 Endpoints for the summary portal
 '''
 @router.post('/get-users')
-def get_users(event_body: Dict, order_by: Optional[str] = None):
-    print ('='*10, order_by, event_body)
-
+def get_users(event_body: Dict, order_by: str, page: int, page_size: int, q: Optional[str] = ''):
     user_email = get_email(event_body)
     if not user_email:
         return invalid_token
 
     internal_users = os.getenv('INTERNAL_USERS', '').split(',')
     if user_email not in internal_users:
-        return invalid_token
+        return forbidden_action
 
     resp = table.scan()
+    items = [ii for ii in resp['Items'] if q.lower() in ii['email']]
+
+    order_by = order_by.replace('id', 'email')
+    if '-' in order_by:
+        order_by = order_by.strip('-')
+        sorted_items = sorted(items, key=lambda k: k.get(order_by, ''), reverse=True) 
+    else:
+        sorted_items = sorted(items, key=lambda k: k.get(order_by, '')) 
+
+    resp = {
+        'Count': len(items),
+        'Items': sorted_items[(page-1)*page_size:page*page_size]
+    }
 
     return resp
 
