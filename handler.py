@@ -4,6 +4,7 @@ import datetime
 import stripe
 
 from typing import Dict
+from typing import Optional
 from mangum import Mangum
 from fastapi import APIRouter, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -284,11 +285,8 @@ def submit_application(event_body: Dict):
     application_uuid = event_body['application_uuid']
     key_to_update = 'submitted_date'
     now = datetime.datetime.now().isoformat()
-    user_info = UserInfo(updated_date=now, value=now)
-    val_from_db = get_db_value(user_email, key_to_update, application_uuid)
-    user_info.created_date = val_from_db['created_date'] if val_from_db else now
 
-    update_dynamodb(user_email, application_uuid, key_to_update, user_info.__dict__)
+    update_dynamodb(user_email, application_uuid, key_to_update, now)
 
     return resp
 
@@ -297,7 +295,9 @@ def submit_application(event_body: Dict):
 Endpoints for the summary portal
 '''
 @router.post('/get-users')
-def get_users(event_body: Dict):
+def get_users(event_body: Dict, order_by: Optional[str] = None):
+    print ('='*10, order_by, event_body)
+
     user_email = get_email(event_body)
     if not user_email:
         return invalid_token
