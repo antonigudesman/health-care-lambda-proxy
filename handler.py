@@ -304,8 +304,16 @@ def get_users(event_body: Dict, order_by: str, page: int, page_size: int, q: Opt
     if user_email not in internal_users:
         return forbidden_action
 
+    q = q.lower()
     resp = table.scan()
-    items = [ii for ii in resp['Items'] if q.lower() in ii['email']]
+    items = []
+
+    for ii in resp['Items']:
+        ii['first_name'] = ii['applicant_info.first_name']['value'] if 'applicant_info.first_name' in ii else ''
+        ii['last_name'] = ii['applicant_info.last_name']['value'] if 'applicant_info.last_name' in ii else ''
+
+        if any([q in ii['email'].lower(), q in ii['first_name'].lower(), q in ii['last_name'].lower()]):
+            items.append(ii)
 
     order_by = order_by.replace('id', 'email')
     if '-' in order_by:
