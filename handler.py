@@ -10,7 +10,7 @@ from fastapi import APIRouter, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from boto3.dynamodb.conditions import Key
 
-from config import API_V1_STR, PROJECT_NAME
+from config import API_V1_STR, PROJECT_NAME, SECTION_LIST
 from auth import get_email
 from utils import *
 from medicaid_detail_utils import *
@@ -309,11 +309,15 @@ def get_users(event_body: Dict, order_by: str, page: int, page_size: int, q: Opt
     items = []
 
     for ii in resp['Items']:
-        ii['first_name'] = ii['applicant_info.first_name']['value'] if 'applicant_info.first_name' in ii else ''
-        ii['last_name'] = ii['applicant_info.last_name']['value'] if 'applicant_info.last_name' in ii else ''
+        item = {
+            'email': ii['email'],
+            'submitted_date': ii.get('submitted_date', ''),
+            'first_name': ii['applicant_info.first_name']['value'] if 'applicant_info.first_name' in ii else '',
+            'last_name': ii['applicant_info.last_name']['value'] if 'applicant_info.last_name' in ii else ''
+        }
 
-        if any([q in ii['email'].lower(), q in ii['first_name'].lower(), q in ii['last_name'].lower()]):
-            items.append(ii)
+        if any([q in item['email'].lower(), q in item['first_name'].lower(), q in item['last_name'].lower()]):
+            items.append(item)
 
     order_by = order_by.replace('id', 'email')
     if '-' in order_by:
@@ -341,7 +345,50 @@ def get_user(event_body: Dict):
         KeyConditionExpression=Key('email').eq(email)
     )
 
-    return response['Items'][0]
+    item = response['Items'][0]
+
+    inputs = []
+    for _inputs in SECTION_LIST:
+        inputs += _inputs['inputs']
+
+    result = {
+        'email': item.pop('email'),
+        'submitted_date': item.pop('submitted_date') if 'submitted_date' in item else '',
+        'first_name': item['applicant_info.first_name']['value'] if 'applicant_info.first_name' in item else '',
+        'last_name': item['applicant_info.last_name']['value'] if 'applicant_info.last_name' in item else '',
+        'items': []
+    }
+
+    # handle excludes
+    excludes = [
+        "sidebarHistory",
+        "documents",
+        "application_uuid",
+        "currentScreenName",
+        "application_name"
+    ]
+
+    for ii in excludes:
+        item.pop(ii, None)
+
+    for key in inputs:
+        if key in item:
+            result['items'].append({
+                'key': key,
+                'val': item.pop(key)
+            })
+        else:
+            _item = dict(item)
+            for _key in _item:
+                if _key.startswith(key):
+                    result['items'].append({
+                        'key': _key,
+                        'val': item.pop(_key)
+                    })
+
+    print (item, '*'*10)
+
+    return result
 
 
 '''
