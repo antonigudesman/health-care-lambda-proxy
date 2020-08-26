@@ -54,8 +54,19 @@ def get_custom_price_detail(email):
     return record
 
 
+def eliminate_sensitive_info(record):
+    if 'documents' in record:
+        _documents = []
+        for ii in record['documents']:
+            ii.pop('s3_location')
+            _documents.append(ii)
+        record['documents'] = _documents
+
+    return record
+
+
 def get_details(email, application_uuid):
-    medicaid_details = table.get_item(
+    record = table.get_item(
         Key={
             'email': email, 'application_uuid': application_uuid
         },
@@ -63,7 +74,12 @@ def get_details(email, application_uuid):
         ReturnConsumedCapacity='NONE',
     )
 
-    return medicaid_details
+    resp = {
+        'Item': eliminate_sensitive_info(record['Item']),
+        'ResponseMetadata': record['ResponseMetadata']
+    }
+
+    return resp
 
 
 def get_db_value(email, key_to_update, application_uuid):

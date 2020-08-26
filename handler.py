@@ -52,7 +52,9 @@ def get_applications(event_body: Dict):
         KeyConditionExpression=Key('email').eq(user_email)
     )
 
-    return response['Items']
+    resp = [eliminate_sensitive_info(ii) for ii in response['Items']]
+
+    return resp
 
 
 @router.post('/get-details')
