@@ -14,6 +14,7 @@ MAX_FILE_SIZE = os.environ.get('MAX_FILE_SIZE', 5)
 dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 custom_price_table = dynamodb.Table(os.environ.get('CUSTOM_PRICE_TABLE', 'TurbocaidCustomPrice-sps-dev-1'))
+stripe_price_table = dynamodb.Table(os.environ.get('STRIPE_PRICE_TABLE', 'TurbocaidStripePrice-sps-dev-1'))
 
 s3 = boto3.resource('s3')
 
@@ -42,15 +43,23 @@ def update_custom_price_dynamodb(email, key, val):
     return resp
 
 
-def get_custom_price_detail(email):
-    record = custom_price_table.get_item(
-        Key={
-            'email': email
-        },
-        ConsistentRead=True,
-        ReturnConsumedCapacity='NONE',
-    )
-
+def get_price_detail(email):
+    try:
+        record = custom_price_table.get_item(
+            Key={
+                'email': email
+            },
+            ConsistentRead=True,
+            ReturnConsumedCapacity='NONE',
+        )['Item']
+    except KeyError:
+        record = stripe_price_table.scan(
+            ConsistentRead=True,
+            ReturnConsumedCapacity='NONE',
+            FilterExpression='standard = :standard',
+            ExpressionAttributeValues={':standard': 'true'}
+        )['Items'][0]
+        
     return record
 
 

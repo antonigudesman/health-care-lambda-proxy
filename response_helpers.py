@@ -90,3 +90,15 @@ invalid_request = {
     "body": json.dumps({"error": "invalid request format"})
 }
 
+invalid_checkout_session = {
+    "statusCode": 400,
+    "headers": response_headers,
+    "body": json.dumps({"error": "invalid checkout session"})
+}
+
+incorrect_price = {
+    "statusCode": 400,
+    "headers": response_headers,
+    "body": json.dumps({"error": "incorrect price"})
+}
+

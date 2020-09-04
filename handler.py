@@ -188,19 +188,24 @@ def create_payment_session(event_body: Dict):
     user_email = get_email(event_body)
     if not user_email:
         return invalid_token
-    application_uuid = event_body['application_uuid']
+
+    verified_price = get_price_detail(user_email)
+    if verified_price['price_id'] != event_body['price_id']:
+        return incorrect_price
+
     react_app_url = os.getenv('REACT_APP_URL')
     session = stripe.checkout.Session.create(
         payment_method_types=['card'],
         line_items=[{
-            'price': event_body['price_id'],
-            'quantity': 1,
+            'price': verified_price['price_id'],
+            'quantity': 1
         }],
         mode='payment',
-        client_reference_id=application_uuid,
+        client_reference_id= event_body['application_uuid'],
         success_url=f'{react_app_url}/payment/success?sessionId={{CHECKOUT_SESSION_ID}}',
         cancel_url=f'{react_app_url}/payment',
     )
+    
     return session.id
 
 
@@ -407,14 +412,12 @@ def get_custom_prices(event_body: Dict):
     return resp
 
 
-@router.post('/get-custom-price')
-def get_custom_price(event_body: Dict):
+@router.post('/get-price')
+def get_price(event_body: Dict):
     user_email = get_email(event_body)
     if not user_email:
         return invalid_token
-
-    email = event_body['email']
-    resp = get_custom_price_detail(email)
+    resp = get_price_detail(user_email)
 
     return resp
 
