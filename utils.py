@@ -68,7 +68,10 @@ def eliminate_sensitive_info(record):
     if 'documents' in record:
         _documents = []
         for ii in record['documents']:
-            ii.pop('s3_location')
+            try:
+              ii.pop('s3_location')
+            except KeyError as err:
+              print('ERROR : no s3 location')  
             _documents.append(ii)
         record['documents'] = _documents
 
