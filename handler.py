@@ -204,8 +204,9 @@ def create_payment_session(event_body: Dict):
         client_reference_id= event_body['application_uuid'],
         success_url=f'{react_app_url}/payment/success?sessionId={{CHECKOUT_SESSION_ID}}',
         cancel_url=f'{react_app_url}/payment',
+        customer_email=user_email
     )
-    
+
     return session.id
 
 

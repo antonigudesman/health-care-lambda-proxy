@@ -15,6 +15,7 @@ dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 custom_price_table = dynamodb.Table(os.environ.get('CUSTOM_PRICE_TABLE', 'TurbocaidCustomPrice-sps-dev-1'))
 stripe_price_table = dynamodb.Table(os.environ.get('STRIPE_PRICE_TABLE', 'TurbocaidStripePrice-sps-dev-1'))
+payment_details_table = dynamodb.Table(os.environ.get('STRIPE_PAYMENT_DETAILS_TABLE', 'StripePaymentDetails-sps-dev-1'))
 
 s3 = boto3.resource('s3')
 
@@ -133,13 +134,19 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
 
 
 def handle_checkout_session_succeeded(checkout_session):
-    #application_uuid = checkout_session.client_reference_id
-    payment_intent_id = checkout_session.payment_intent
+    application_uuid = checkout_session.client_reference_id
+    email = checkout_session.customer_email
     payment_intent = stripe.PaymentIntent.retrieve(
-        payment_intent_id
+        checkout_session.payment_intent
+    )
+    resp = payment_details_table.update_item(
+        Key={'email': email, 'application_uuid': application_uuid},
+        ExpressionAttributeNames={ "#the_key": 'details' },
+        ExpressionAttributeValues={ ":val_to_update": payment_intent },
+        UpdateExpression="SET #the_key = :val_to_update"
     )
 
-    print(payment_intent)
+    return resp
 
 
 def get_file_size(b64string):
