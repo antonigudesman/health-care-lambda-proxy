@@ -2,7 +2,9 @@ import base64
 import datetime
 
 import stripe
+import requests
 
+from requests.auth import HTTPBasicAuth
 from typing import Dict
 from typing import Optional
 from mangum import Mangum
@@ -297,6 +299,62 @@ def submit_application(event_body: Dict):
     update_dynamodb(user_email, application_uuid, key_to_update, now)
 
     return resp
+
+'''
+Endpoints for docusign
+'''
+@router.post('/check-signed')
+def check_signed(event_body: Dict):
+    user_email = get_email(event_body)
+    if not user_email:
+        return invalid_token
+
+    # get access token
+    ds_client_id = os.getenv("DS_CLIENT_ID")
+    ds_client_secret = os.getenv("DS_CLIENT_SECRET")
+    refresh_token = os.getenv("DS_REFRESH_TOKEN")
+
+    data = {
+        'grant_type': 'refresh_token',
+        'refresh_token': refresh_token
+    }
+
+    auth_url = 'https://account-d.docusign.com/oauth/token'
+
+    resp = requests.post(auth_url, data=data, auth=HTTPBasicAuth(ds_client_id, ds_client_secret)).json()
+
+    access_token = resp['access_token']
+    print ('ds access token:', access_token)
+
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+
+    account_id = os.getenv('DS_ACCOUNT_ID')
+    body = event_body['value_to_update']
+    envelope_id = body['envelope']
+    recipient_id = body['recipient']
+
+    # get recipients
+    params = {
+        'include': 'recipients'
+    }
+    base_url = os.getenv('DS_BASE_URL')
+    url = base_url + f'/restapi/v2.1/accounts/{account_id}/envelopes/{envelope_id}/recipients'
+    resp = requests.get(url, headers=headers, params=params).json()
+
+    status = ''
+    for ii in resp['signers']:
+        if ii['recipientIdGuid'] == recipient_id:
+            status = ii['status']
+
+    application_uuid = event_body['application_uuid']
+    key_to_update = 'docusign'
+    body['status'] = status
+
+    update_dynamodb(user_email, application_uuid, key_to_update, body)
+
+    return status
 
 
 '''
