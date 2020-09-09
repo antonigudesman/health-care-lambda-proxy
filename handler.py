@@ -352,7 +352,10 @@ def check_signed(event_body: Dict):
     key_to_update = 'docusign'
     body['status'] = status
 
-    update_dynamodb(user_email, application_uuid, key_to_update, body)
+    now = datetime.datetime.now().isoformat()
+    user_info = UserInfo(created_date=now, updated_date=now, value=body)
+
+    update_dynamodb(user_email, application_uuid, key_to_update, user_info.__dict__)
 
     return status
 
