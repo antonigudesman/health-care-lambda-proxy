@@ -17,10 +17,10 @@ phases:
       - echo Running tests
       - pipenv install --dev
       - sh bootstrap.sh
-      - pipenv run pytest > myoutput.log
 
   post_build:
     commands:
+      - pipenv run pytest > myoutput.log
       - echo Build completed on `date`
 reports:
   myReport:
