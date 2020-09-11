@@ -4,11 +4,11 @@ phases:
     runtime-versions:
       python: 3.8
     commands:
-      - docker pull postgres:latest
+      - echo I could have put a command here
   pre_build:
     commands:
-      - echo Running postgres
-      - docker run -e PGPASSWORD -e PGUSER -e PGDATABASE -d -p 5432:5432 postgres
+      - echo Here are some more commands
+      - echo Here are some more commands
   build:
     commands:
       - echo Build started on `date`
@@ -17,7 +17,7 @@ phases:
       - echo Running tests
       - pipenv install --dev
       - sh bootstrap.sh
-      - pipenv run pytest
+      - pipenv run pytest > myoutput.log
 
   post_build:
     commands:
@@ -25,7 +25,7 @@ phases:
 reports:
   myReport:
     files:
-      - "**/*"
+      - "myoutput.log"
 cache:
   paths:
     - "/root/.cache/pip/*"
