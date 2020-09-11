@@ -25,7 +25,7 @@ phases:
 reports:
   myReport:
     files:
-      - "myoutput.log"
+      - "**/myoutput.log"
 cache:
   paths:
     - "/root/.cache/pip/*"

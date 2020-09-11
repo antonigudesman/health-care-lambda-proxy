@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-sudo docker pull amazon/dynamodb-local
-sudo docker run -d -p 8000:8000 amazon/dynamodb-local
+docker pull amazon/dynamodb-local
+docker run -d -p 8000:8000 amazon/dynamodb-local
 aws dynamodb create-table \
     --table-name medicaid-details \
     --attribute-definitions \
