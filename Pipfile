@@ -13,6 +13,7 @@ fastapi = "*"
 [dev-packages]
 pipfile-requirements = "*"
 click = "*"
+pytest = "*"
 
 [requires]
 python_version = "3.8"

@@ -1,0 +1,31 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      python: 3.8
+    commands:
+      - docker pull postgres:latest
+  pre_build:
+    commands:
+      - echo Running postgres
+      - docker run -e PGPASSWORD -e PGUSER -e PGDATABASE -d -p 5432:5432 postgres
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Installing dependencies
+      - pip install pipenv
+      - echo Running tests
+      - pipenv install --dev
+      - sh bootstrap.sh
+      - pipenv run pytest
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+reports:
+  myReport:
+    files:
+      - "**/*"
+cache:
+  paths:
+    - "/root/.cache/pip/*"
