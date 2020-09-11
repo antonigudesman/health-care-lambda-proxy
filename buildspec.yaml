@@ -20,12 +20,14 @@ phases:
 
   post_build:
     commands:
-      - pipenv run pytest > myoutput.log
+      - pipenv run pytest --junitxml=pytest_reports/pytest_report
       - echo Build completed on `date`
 reports:
-  myReport:
+  pytest_reports:
     files:
-      - "**/myoutput.log"
+      - pytest_report
+    base-directory: pytest_reports
+    file-format: JUNITXML
 cache:
   paths:
     - "/root/.cache/pip/*"
