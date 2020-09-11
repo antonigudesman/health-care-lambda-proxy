@@ -25,5 +25,9 @@ phases:
 reports:
   pytest_reports:
     files:
-      - '**/*'    base-directory: pytest_reports
+      - '**/*'
+    base-directory: pytest_reports
     file-format: JUNITXML
+cache:
+  paths:
+    - "/root/.cache/pip/*"
