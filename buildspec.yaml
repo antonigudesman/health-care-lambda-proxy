@@ -20,13 +20,28 @@ phases:
 
   post_build:
     commands:
-      - pipenv run pytest --junitxml=pytest_reports_dir/pytest_report.xml
+      - pipenv run pytest 
+        --html=test-reports/report.html 
+        --self-contained-html
+        -s
+        -v
+        --cov=dspt 
+        --cov-report=html:test-reports/coverage 
+        --junitxml=test-reports/junit.xml
       - echo Build completed on `date`
 reports:
-  pytest_reports:
+  coverage:
     files:
-      - 'pytest_report.xml'
-    base-directory: 'pytest_reports_dir'
+      - "coverage/*"
+    base-directory: 'test-reports'
+    discard-paths: yes
+  report:
+    files:
+      - 'junit.xml'
+      - 'report.html'
+      - 'assets/*'
+    base-directory: 'test-reports'
+    discard-paths: yes
     file-format: JunitXml
 cache:
   paths:
