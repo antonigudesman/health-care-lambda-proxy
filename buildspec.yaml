@@ -2,9 +2,9 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      python: 3.8
+      python: 3.7
     commands:
-      - echo I could have put a command here
+      - pip install aws-sam-cli
   pre_build:
     commands:
       - echo Here are some more commands
@@ -14,14 +14,18 @@ phases:
       - echo Build started on `date`
       - echo Installing dependencies
       - pip install pipenv
-      - echo Running tests
       - pipenv install --dev
-      - sh bootstrap.sh
+      - pipenv lock -r > requirements.txt
+      - sam build
+      - zip -r -D TurbocaidLambdaProxy.zip *
 
   post_build:
     commands:
+      - sh bootstrap.sh
       - pipenv run pytest --cov=. --cov-report=xml:test-reports/coverage.xml  --junitxml=test-reports/junit.xml
       - echo Build completed on `date`
+      - aws s3 cp TurbocaidLambdaProxy.zip s3://lambda-source-code-sps-qa-1/TurbocaidLambdaProxy.zip
+      - aws lambda update-function-code --function-name turbocaid-proxy--sps-qa-1 --s3-bucket lambda-source-code-sps-qa-1 --s3-key TurbocaidLambdaProxy.zip
 reports:
   coverage:
     files:

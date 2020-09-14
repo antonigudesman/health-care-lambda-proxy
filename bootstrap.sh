@@ -9,4 +9,4 @@ aws dynamodb create-table \
         AttributeName=application_uuid,AttributeType=S \
     --key-schema AttributeName=email,KeyType=HASH AttributeName=application_uuid,KeyType=RANGE \
     --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1 \
-    --endpoint-url http://127.0.0.1:8000
+    --endpoint-url http://localhost:8000
