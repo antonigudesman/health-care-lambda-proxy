@@ -16,7 +16,7 @@ phases:
       - pip install pipenv
       - pipenv install --dev
       - pipenv lock -r > requirements.txt
-      - sam build use-container
+      - sam build
       - zip -r -D TurbocaidLambdaProxy.zip *
 
   post_build:
