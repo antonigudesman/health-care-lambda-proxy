@@ -1,0 +1,40 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      python: 3.8
+    commands:
+      - echo I could have put a command here
+  pre_build:
+    commands:
+      - echo Here are some more commands
+      - echo Here are some more commands
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Installing dependencies
+      - pip install pipenv
+      - echo Running tests
+      - pipenv install --dev
+      - sh bootstrap.sh
+
+  post_build:
+    commands:
+      - pipenv run pytest --cov=. --cov-report=xml:test-reports/coverage.xml  --junitxml=test-reports/junit.xml
+      - echo Build completed on `date`
+reports:
+  coverage:
+    files:
+      - "coverage.xml"
+    base-directory: 'test-reports'
+    file-format: JaCoCoXML
+    discard-paths: yes
+  report:
+    files:
+      - 'junit.xml'
+    base-directory: 'test-reports'
+    discard-paths: yes
+    file-format: JunitXml
+cache:
+  paths:
+    - "/root/.cache/pip/*"

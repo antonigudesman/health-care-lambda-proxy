@@ -9,10 +9,14 @@ requests = "*"
 stripe = "*"
 mangum = "*"
 fastapi = "*"
+boto3 = "*"
 
 [dev-packages]
 pipfile-requirements = "*"
 click = "*"
+pytest = "*"
+boto3 = "*"
+pytest-cov = "*"
 
 [requires]
 python_version = "3.8"

@@ -13,5 +13,6 @@
 
 ## Build
 - use python-lambda
+- working on ci/cd with codedeploy
 
 
