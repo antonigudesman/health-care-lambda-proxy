@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
 docker pull amazon/dynamodb-local
-#docker run -d -p --network host 8000:8000 amazon/dynamodb-local
-docker run -d --network host --name dyanolocal amazon/dynamodb-local
+docker run -d -p --network host 8000:8000 amazon/dynamodb-local
+#docker run -d --network host --name dyanolocal amazon/dynamodb-local
+sleep 5
 aws dynamodb create-table \
     --table-name medicaid-details \
     --attribute-definitions \
