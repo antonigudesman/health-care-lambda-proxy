@@ -1,4 +1,8 @@
 version: 0.2
+
+env:
+  variables:
+    code-deploy: "YES"
 phases:
   install:
     runtime-versions:
@@ -21,7 +25,6 @@ phases:
 
   post_build:
     commands:
-      - sh bootstrap.sh
       - pipenv run pytest --cov=. --cov-report=xml:test-reports/coverage.xml  --junitxml=test-reports/junit.xml
       - echo Build completed on `date`
       - aws s3 cp TurbocaidLambdaProxy.zip s3://lambda-source-code-sps-qa-1/TurbocaidLambdaProxy.zip

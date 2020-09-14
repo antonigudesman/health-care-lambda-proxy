@@ -2,6 +2,7 @@ from handler import update_details, get_details, upload_file, BUCKET_NAME, get_a
 import boto3
 import pytest
 import stripe
+import os
 
 EMAIL = 'jasonh@ltccs.com'
 APPLICATION_UUID = '098029483-sdfsf-234243-009023424'
@@ -9,9 +10,11 @@ APPLICATION_UUID = '098029483-sdfsf-234243-009023424'
 
 @pytest.fixture
 def clear_data():
-    endpoint_url = 'http://localhost:8000'
-    dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=endpoint_url)
-    table = dynamodb.Table('medicaid-details')
+    if os.getenv('code-deploy'):
+      dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+    else:   
+      dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url='http://localhost:8000')
+    table = dynamodb.Table('medicaid-details-unit-test')
     table.delete_item(
         Key={
             'email': EMAIL,
