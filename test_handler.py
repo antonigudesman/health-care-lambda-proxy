@@ -10,7 +10,7 @@ APPLICATION_UUID = '098029483-sdfsf-234243-009023424'
 
 @pytest.fixture
 def clear_data():
-    if os.getenv('code-deploy'):
+    if os.getenv('IS_CODE_DEPLOY_TEST'):
       dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     else:   
       dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url='http://localhost:8000')

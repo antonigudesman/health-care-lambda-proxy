@@ -2,7 +2,7 @@ version: 0.2
 
 env:
   variables:
-    code-deploy: "YES"
+    IS_CODE_DEPLOY_TEST: "YES"
 phases:
   install:
     runtime-versions:
