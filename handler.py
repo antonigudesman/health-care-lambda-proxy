@@ -192,6 +192,7 @@ def create_payment_session(event_body: Dict):
 
     verified_price = get_price_detail(user_email)
     if verified_price['price_id'] != event_body['price_id']:
+        print('Error verifying price')
         return incorrect_price
 
     react_app_url = os.getenv('REACT_APP_URL')
@@ -479,7 +480,7 @@ def create_custom_price(event_body: Dict):
         ReturnValues='NONE'
     )
 
-    resp = get_custom_price_detail(email)
+    resp = get_price_detail(email)
 
     return resp
 
