@@ -27,6 +27,7 @@ reports:
     files:
       - "coverage.xml"
     base-directory: 'test-reports'
+    file-format: JaCoCo XML
     discard-paths: yes
   report:
     files:
