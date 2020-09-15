@@ -1,4 +1,10 @@
 version: 0.2
+
+env:
+  variables:
+    IS_CODE_DEPLOY_TEST: "YES"
+    IS_UNIT_TEST: "YES"
+    TABLE: "medicaid-details-unit-test"
 phases:
   install:
     runtime-versions:
@@ -21,8 +27,7 @@ phases:
 
   post_build:
     commands:
-      - sh bootstrap.sh
-      - pipenv run pytest --cov=. --cov-report=xml:test-reports/coverage.xml  --junitxml=test-reports/junit.xml
+      - export IS_CODE_DEPLOY_TEST=YES && export IS_UNIT_TEST=YES && export TABLE=medicaid-details-unit-test && printenv && pipenv run pytest --cov=. --cov-report=xml:test-reports/coverage.xml  --junitxml=test-reports/junit.xml
       - echo Build completed on `date`
       - aws s3 cp TurbocaidLambdaProxy.zip s3://lambda-source-code-sps-qa-1/TurbocaidLambdaProxy.zip
       - aws lambda update-function-code --function-name turbocaid-proxy--sps-qa-1 --s3-bucket lambda-source-code-sps-qa-1 --s3-key TurbocaidLambdaProxy.zip
