@@ -27,6 +27,8 @@ phases:
       - cd ./.aws-sam/build
       - zip -r -D TurbocaidLambdaProxy.zip *
       - pwd
+      - ls -al
+      - ls -al TurbocaidLambdaProxy
       - cd ../..
       - pwd
 
