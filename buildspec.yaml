@@ -23,7 +23,9 @@ phases:
       - pipenv install --dev
       - pipenv lock -r > requirements.txt
       - sam build
+      - cd .aws-sam/build
       - zip -r -D TurbocaidLambdaProxy.zip *
+      - cd ../..
 
   post_build:
     commands:
