@@ -205,8 +205,8 @@ def create_payment_session(event_body: Dict):
             }],
             mode='payment',
             client_reference_id= event_body['application_uuid'],
-            success_url=f'{react_app_url}/payment/success?sessionId={{CHECKOUT_SESSION_ID}}',
-            cancel_url=f'{react_app_url}/payment',
+            success_url=f'{react_app_url}/success?sessionId={{CHECKOUT_SESSION_ID}}',
+            cancel_url=f'{react_app_url}/intake',
             customer_email=user_email
         )
 
@@ -499,7 +499,7 @@ def update_custom_price(event_body: Dict):
     update_custom_price_dynamodb(email, 'updated_at', now)
     update_custom_price_dynamodb(email, 'updated_by', user_email)
 
-    resp = get_custom_price_detail(email)
+    resp = get_price_detail(email)
 
     return resp
 
