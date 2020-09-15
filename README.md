@@ -10,6 +10,9 @@
 ## Test
 -  Use pytest
     - recommend using Pycharm instead of command line (you'll have an easier time setting environment variables and debugging)
+    - ENDPOINT_URL="localhost:8000"
+    - IS_UNIT_TEST="yes"
+    - TABLE="medicaid-details-unit-test"
 
 ## Build
 - use python-lambda
