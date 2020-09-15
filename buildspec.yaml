@@ -32,12 +32,6 @@ phases:
       - aws s3 cp TurbocaidLambdaProxy.zip s3://lambda-source-code-sps-qa-1/TurbocaidLambdaProxy.zip
       - aws lambda update-function-code --region us-east-1 --function-name turbocaid-proxy--sps-qa-1 --s3-bucket lambda-source-code-sps-qa-1 --s3-key TurbocaidLambdaProxy.zip
 reports:
-  code-coverage:
-    files:
-      - "coverage.xml"
-    base-directory: 'code-coverage-reports'
-    file-format: JaCoCoXML
-    discard-paths: yes
   report:
     files:
       - 'junit.xml'
