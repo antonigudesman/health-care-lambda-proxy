@@ -27,6 +27,7 @@ phases:
 
   post_build:
     commands:
+      - export IS_CODE_DEPLOY_TEST=YES && export IS_UNIT_TEST=YES && export TABLE=medicaid-details-unit-test
       - pipenv run pytest --cov=. --cov-report=xml:test-reports/coverage.xml  --junitxml=test-reports/junit.xml
       - echo Build completed on `date`
       - aws s3 cp TurbocaidLambdaProxy.zip s3://lambda-source-code-sps-qa-1/TurbocaidLambdaProxy.zip
