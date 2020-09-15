@@ -51,7 +51,7 @@ def test_update_details_non_list_value(clear_data):
     }
 
     update_details(event_body)
-    resp = get_details(APPLICATION_UUID)
+    resp = get_details(EMAIL, APPLICATION_UUID)
 
     assert resp['Item']['email'] == EMAIL
     spouse_first_name_detail = resp['Item']['spouse_info_first_name']
@@ -176,7 +176,7 @@ def test_file_upload(clear_data, clean_bucket):
 
     upload_file(event_body_2)
 
-    resp = get_details(APPLICATION_UUID)
+    resp = get_details(EMAIL, APPLICATION_UUID)
 
     document_resp = resp['Item']['documents']
 

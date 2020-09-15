@@ -11,7 +11,8 @@ import stripe
 BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
 MAX_FILE_SIZE = os.environ.get('MAX_FILE_SIZE', 5)
 
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1', endpoint_url=os.getenv('ENDPOINT_URL'))
+
 table = dynamodb.Table(os.environ.get('TABLE', 'medicaid-details'))
 custom_price_table = dynamodb.Table(os.environ.get('CUSTOM_PRICE_TABLE', 'TurbocaidCustomPrice-sps-dev-1'))
 stripe_price_table = dynamodb.Table(os.environ.get('STRIPE_PRICE_TABLE', 'TurbocaidStripePrice-sps-dev-1'))
@@ -86,11 +87,13 @@ def get_details(email, application_uuid):
         ConsistentRead=True,
         ReturnConsumedCapacity='NONE',
     )
-
+    print(f'the record is str({record})')
     resp = {
         'Item': eliminate_sensitive_info(record['Item']),
         'ResponseMetadata': record['ResponseMetadata']
     }
+
+    print(f'the get details response is {str(resp)}')
 
     return resp
 
