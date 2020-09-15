@@ -30,7 +30,7 @@ phases:
       - export IS_CODE_DEPLOY_TEST=YES && export IS_UNIT_TEST=YES && export TABLE=medicaid-details-unit-test && printenv && pipenv run pytest --cov=. --cov-report=xml:code-coverage-reports/coverage.xml  --junitxml=test-reports/junit.xml
       - echo Build completed on `date`
       - aws s3 cp TurbocaidLambdaProxy.zip s3://lambda-source-code-sps-qa-1/TurbocaidLambdaProxy.zip
-      - aws lambda update-function-code --function-name turbocaid-proxy--sps-qa-1 --s3-bucket lambda-source-code-sps-qa-1 --s3-key TurbocaidLambdaProxy.zip
+      - aws lambda update-function-code --region us-east-1 --function-name turbocaid-proxy--sps-qa-1 --s3-bucket lambda-source-code-sps-qa-1 --s3-key TurbocaidLambdaProxy.zip
 reports:
   code-coverage:
     files:
