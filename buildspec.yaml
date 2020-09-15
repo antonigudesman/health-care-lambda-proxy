@@ -3,6 +3,8 @@ version: 0.2
 env:
   variables:
     IS_CODE_DEPLOY_TEST: "YES"
+    IS_UNIT_TEST: "YES"
+    TABLE: "medicaid-details-unit-test"
 phases:
   install:
     runtime-versions:
