@@ -146,7 +146,7 @@ def handle_successful_payment(checkout_session):
         email = checkout_session.customer_email
     except KeyError:
         email = checkout_session.charges.data.email
-    application_uuid = checkout_session.meta_data.application_uuid
+    application_uuid = checkout_session.metadata.application_uuid
     
     save_payment_info(email, application_uuid, checkout_session)
     send_completed_application_email(email, application_uuid)
