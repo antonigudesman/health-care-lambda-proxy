@@ -232,9 +232,10 @@ def completed_checkout_session(request: Request):
             event_body, stripe_signature, endpoint_secret
         )
     except stripe.error.SignatureVerificationError:
+        print('Error: invalid stripe signature')
         return invalid_signature
 
-    if event.type == 'checkout.session.completed':
+    if event.type == 'checkout.session.completed' or event.type == 'payment_intent.succeeded':
         try:
             checkout_session = event.data.object
             handle_successful_payment(checkout_session)
