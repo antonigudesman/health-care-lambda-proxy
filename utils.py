@@ -141,8 +141,12 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
 
 
 def handle_successful_payment(checkout_session):    
-    email = checkout_session.customer_email
-    application_uuid = checkout_session.client_reference_id
+    print(str(checkout_session))
+    try:
+        email = checkout_session.customer_email
+    except KeyError:
+        email = checkout_session.charges.data.email
+    application_uuid = checkout_session.meta_data.application_uuid
     
     save_payment_info(email, application_uuid, checkout_session)
     send_completed_application_email(email, application_uuid)
@@ -205,8 +209,8 @@ def send_completed_application_email(user_email, application_uuid):
     try: 
         subject = 'Turbocaid Application Summary'
         to_emails = os.environ.get('TO_EMAILS', 'jason.5001001@gmail.com')
-        applicant_first_name = get_db_value(user_email, 'applicant_info_first_name', application_uuid)['value']
-        applicant_last_name = get_db_value(user_email, 'applicant_info_last_name', application_uuid)['value']
+        applicant_first_name = get_db_value(user_email, 'applicant_info.first_name', application_uuid)['value']
+        applicant_last_name = get_db_value(user_email, 'applicant_info.last_name', application_uuid)['value']
         email_body = f'{applicant_first_name} {applicant_last_name} submitted application. Email: {user_email}. Application Id: {application_uuid}'
 
         resp = send_email(subject, to_emails, email_body)

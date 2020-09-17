@@ -204,7 +204,7 @@ def create_payment_session(event_body: Dict):
                 'quantity': 1
             }],
             mode='payment',
-            client_reference_id= event_body['application_uuid'],
+            meta_data= {'application_uuid': event_body['application_uuid']},
             success_url=f'{react_app_url}/success?sessionId={{CHECKOUT_SESSION_ID}}',
             cancel_url=f'{react_app_url}/intake',
             customer_email=user_email
@@ -215,9 +215,8 @@ def create_payment_session(event_body: Dict):
         print('Error creating checkout session:' + str(e))
         return invalid_checkout_session
 
-
 @router.post('/completed-checkout-session')
-def completed_checkout_session(request: Request):
+def completed_checkout_session(request: Request)    
     try:
         endpoint_secret = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('WEBHOOK_SECRET')))['Plaintext'].decode()
     except Exception as e:
@@ -235,7 +234,7 @@ def completed_checkout_session(request: Request):
         print('Error: invalid stripe signature')
         return invalid_signature
 
-    if event.type == 'checkout.session.completed':
+    if event.type == 'checkout.session.completed' or event.type == 'payment_intent.succeeded':
         try:
             checkout_session = event.data.object
             handle_successful_payment(checkout_session)
