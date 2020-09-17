@@ -216,7 +216,7 @@ def create_payment_session(event_body: Dict):
         return invalid_checkout_session
 
 @router.post('/completed-checkout-session')
-def completed_checkout_session(request: Request)    
+def completed_checkout_session(request: Request):    
     try:
         endpoint_secret = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('WEBHOOK_SECRET')))['Plaintext'].decode()
     except Exception as e:
