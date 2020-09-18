@@ -218,19 +218,13 @@ def create_payment_session(event_body: Dict):
 
 @router.post('/completed-checkout-session')
 def completed_checkout_session(request: Request):
-    handle_successful_payment(request)
-
-@router.post('/completed-payment-intent')     
-def completed_payment_intent(request: Request):   
-    handle_successful_payment(request)
-
- 
-def handle_successful_payment(request: Request):
     try:
-        endpoint_secret = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('WEBHOOK_SECRET')))['Plaintext'].decode()
+        endpoint_secret = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('CHECKOUT_SESSION_WEBHOOK_SECRET')),
+        EncryptionContext={'LambdaFunctionName': os.environ['AWS_LAMBDA_FUNCTION_NAME']})['Plaintext'].decode()
     except Exception as e:
-        endpoint_secret = os.getenv('WEBHOOK_SECRET')
+        endpoint_secret = os.getenv('CHECKOUT_SESSION_WEBHOOK_SECRET')
     try:
+        print(request)
         event_body = request.scope['aws.event']['body']
         stripe_signature = request.scope['aws.event']['headers']['Stripe-Signature']
     except KeyError:
@@ -243,12 +237,48 @@ def handle_successful_payment(request: Request):
         print('Error: invalid stripe signature')
         return invalid_signature
 
-    if event.type == 'checkout.session.completed' or event.type == 'payment_intent.succeeded':
+    if event.type == 'checkout.session.completed':
         try:
             checkout_session = event.data.object
             handle_successful_payment(checkout_session)
         except Exception as e:
             print('Error handling successful checkout session:', e)
+    else:
+        return unknown_event_type
+
+    return {
+        "statusCode": 200,
+        "headers": response_headers
+    }
+
+
+@router.post('/completed-payment-intent')
+def completed_payment_intent(request: Request):
+    try:
+        endpoint_secret = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('PAYMENT_INTENT_WEBHOOK_SECRET')), 
+        EncryptionContext={'LambdaFunctionName': os.environ['AWS_LAMBDA_FUNCTION_NAME']})['Plaintext'].decode()
+    except Exception as e:
+        endpoint_secret = os.getenv('PAYMENT_INTENT_WEBHOOK_SECRET')
+    try:
+        print(request)
+        event_body = request.scope['aws.event']['body']
+        stripe_signature = request.scope['aws.event']['headers']['Stripe-Signature']
+    except KeyError:
+        return invalid_request
+    try:
+        event = stripe.Webhook.construct_event(
+            event_body, stripe_signature, endpoint_secret
+        )
+    except stripe.error.SignatureVerificationError:
+        print('Error: invalid stripe signature')
+        return invalid_signature
+
+    if event.type == 'payment_intent.succeeded':
+        try:
+            payment_intent = event.data.object
+            handle_successful_payment(payment_intent)
+        except Exception as e:
+            print('Error handling successful payment intent:', e)
     else:
         return unknown_event_type
 
