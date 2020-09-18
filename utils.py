@@ -8,6 +8,8 @@ import datetime
 import boto3
 import stripe
 
+from config import SECTION_LIST
+
 
 BUCKET_NAME = os.environ.get('USER_FILES_BUCKET')
 MAX_FILE_SIZE = os.environ.get('MAX_FILE_SIZE', 5)
@@ -24,7 +26,35 @@ s3 = boto3.resource('s3')
 ses = boto3.client('ses', region_name='us-east-1')
 
 
+def check_key_validity(key):
+    inputs = [
+        "email",
+        "submitted_date",
+        "applicant_info.first_name",
+        "applicant_info.last_name",
+        "sidebarHistory",
+        "documents",
+        "application_uuid",
+        "currentScreenName",
+        "application_name"
+    ]
+
+    for _inputs in SECTION_LIST:
+        inputs += _inputs['inputs']
+
+    if key in inputs:
+        return True
+
+    for _key in inputs:
+        if key.startswith(_key):
+            return True
+
+
 def update_dynamodb(email, application_uuid, key, val):
+    is_valid_key = check_key_validity(key)
+    if not is_valid_key:
+        print ("=== Unrecognizable key:", key)
+
     resp = table.update_item(
         Key={'email': email, 'application_uuid': application_uuid},
         ExpressionAttributeNames={ "#the_key": key },
@@ -71,9 +101,9 @@ def eliminate_sensitive_info(record):
         _documents = []
         for ii in record['documents']:
             try:
-              ii.pop('s3_location')
+                ii.pop('s3_location')
             except KeyError as err:
-              print('ERROR : no s3 location')  
+                print('ERROR : no s3 location')  
             _documents.append(ii)
         record['documents'] = _documents
 
