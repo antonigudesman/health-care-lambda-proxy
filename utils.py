@@ -141,11 +141,10 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
 
 
 def handle_successful_payment(checkout_session):    
-    print(str(checkout_session))
     try:
         email = checkout_session.customer_email
-    except KeyError:
-        email = checkout_session.charges.data.email
+    except AttributeError:
+        email = checkout_session.charges.data[0].billing_details.email
     application_uuid = checkout_session.metadata.application_uuid
     
     save_payment_info(email, application_uuid, checkout_session)
