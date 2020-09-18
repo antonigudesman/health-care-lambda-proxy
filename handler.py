@@ -220,8 +220,8 @@ def create_payment_session(event_body: Dict):
 def completed_checkout_session(request: Request):
     handle_successful_payment(request)
 
- @router.post('/completed-payment-intent')     
- def completed_payment_intent(request: Request):   
+@router.post('/completed-payment-intent')     
+def completed_payment_intent(request: Request):   
     handle_successful_payment(request)
 
  
