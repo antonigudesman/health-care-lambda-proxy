@@ -224,7 +224,6 @@ def completed_checkout_session(request: Request):
     except Exception as e:
         endpoint_secret = os.getenv('CHECKOUT_SESSION_WEBHOOK_SECRET')
     try:
-        print(request)
         event_body = request.scope['aws.event']['body']
         stripe_signature = request.scope['aws.event']['headers']['Stripe-Signature']
     except KeyError:
@@ -260,7 +259,6 @@ def completed_payment_intent(request: Request):
     except Exception as e:
         endpoint_secret = os.getenv('PAYMENT_INTENT_WEBHOOK_SECRET')
     try:
-        print(request)
         event_body = request.scope['aws.event']['body']
         stripe_signature = request.scope['aws.event']['headers']['Stripe-Signature']
     except KeyError:
