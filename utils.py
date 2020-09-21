@@ -173,7 +173,7 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
 def handle_successful_payment(checkout_session):  
     email = checkout_session.customer_email
     application_uuid = checkout_session.metadata.application_uuid
-    
+
     save_payment_info(email, application_uuid, checkout_session)
     send_completed_application_email(email, application_uuid)
     update_application_status(email, application_uuid)
@@ -261,7 +261,6 @@ def save_payment_info(user_email, application_uuid, checkout_session):
         payment_intent = stripe.PaymentIntent.retrieve(
             checkout_session.payment_intent
         )
-        print(str(payment_intent))
         resp = payment_details_table.update_item(
             Key={'email': user_email, 'application_uuid': application_uuid},
             ExpressionAttributeNames={ "#the_key": 'details' },
