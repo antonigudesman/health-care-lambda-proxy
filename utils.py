@@ -172,7 +172,7 @@ def delete_document_info_from_database(user_email, event_body, application_uuid)
 
 def handle_successful_payment(checkout_session):  
     email = checkout_session.customer_email
-    application_uuid = checkout_session.metadata.application_uuid
+    application_uuid = checkout_session.client_reference_id
 
     save_payment_info(email, application_uuid, checkout_session)
     send_completed_application_email(email, application_uuid)

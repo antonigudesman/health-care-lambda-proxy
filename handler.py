@@ -204,7 +204,7 @@ def create_payment_session(event_body: Dict):
                 'quantity': 1
             }],
             mode='payment',
-            metadata= {'application_uuid': event_body['application_uuid']},
+            client_reference_id= event_body['application_uuid'],
             success_url=f'{react_app_url}/success?sessionId={{CHECKOUT_SESSION_ID}}',
             cancel_url=f'{react_app_url}/intake',
             customer_email=user_email
