@@ -20,7 +20,7 @@ from response_helpers import (
     response_headers, missing_file_contents, missing_file_name,
     invalid_token, forbidden_action, options_response, missing_files, 
     invalid_signature, unknown_event_type, invalid_request,
-    max_file_size_exceeded
+    max_file_size_exceeded, invalid_checkout_session, incorrect_price
 )
 
 
@@ -38,10 +38,9 @@ router = APIRouter()
 
 try:
     kms = boto3.client('kms')
-    stripe_api_key = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('STRIPE_API_KEY')))['Plaintext'].decode()
+    stripe.api_key = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('STRIPE_API_KEY')))['Plaintext'].decode()
 except Exception as err:
-    stripe_api_key = os.getenv('STRIPE_API_KEY')
-stripe.api_key = stripe_api_key
+    stripe.api_key = os.getenv('STRIPE_API_KEY')
 
 
 @router.post('/get-applications')
@@ -193,31 +192,37 @@ def create_payment_session(event_body: Dict):
 
     verified_price = get_price_detail(user_email)
     if verified_price['price_id'] != event_body['price_id']:
+        print('Error verifying price')
         return incorrect_price
 
     react_app_url = os.getenv('REACT_APP_URL')
-    session = stripe.checkout.Session.create(
-        payment_method_types=['card'],
-        line_items=[{
-            'price': verified_price['price_id'],
-            'quantity': 1
-        }],
-        mode='payment',
-        client_reference_id= event_body['application_uuid'],
-        success_url=f'{react_app_url}/payment/success?sessionId={{CHECKOUT_SESSION_ID}}',
-        cancel_url=f'{react_app_url}/payment',
-        customer_email=user_email
-    )
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price': verified_price['price_id'],
+                'quantity': 1
+            }],
+            mode='payment',
+            client_reference_id= event_body['application_uuid'],
+            success_url=f'{react_app_url}/success?sessionId={{CHECKOUT_SESSION_ID}}',
+            cancel_url=f'{react_app_url}/intake',
+            customer_email=user_email
+        )
 
-    return session.id
+        return session.id
+    except stripe.error.InvalidRequestError as e: 
+        print('Error creating checkout session:' + str(e))
+        return invalid_checkout_session
 
 
 @router.post('/completed-checkout-session')
 def completed_checkout_session(request: Request):
     try:
-        endpoint_secret = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('WEBHOOK_SECRET')))['Plaintext'].decode()
+        endpoint_secret = kms.decrypt(CiphertextBlob=base64.b64decode(os.getenv('CHECKOUT_SESSION_WEBHOOK_SECRET')),
+        EncryptionContext={'LambdaFunctionName': os.environ['AWS_LAMBDA_FUNCTION_NAME']})['Plaintext'].decode()
     except Exception as e:
-        endpoint_secret = os.getenv('WEBHOOK_SECRET')
+        endpoint_secret = os.getenv('CHECKOUT_SESSION_WEBHOOK_SECRET')
     try:
         event_body = request.scope['aws.event']['body']
         stripe_signature = request.scope['aws.event']['headers']['Stripe-Signature']
@@ -227,18 +232,14 @@ def completed_checkout_session(request: Request):
         event = stripe.Webhook.construct_event(
             event_body, stripe_signature, endpoint_secret
         )
-    except ValueError as e:
-        return {
-            "statusCode": 400,
-            "headers": response_headers
-        }
     except stripe.error.SignatureVerificationError:
+        print('Error: invalid stripe signature')
         return invalid_signature
 
     if event.type == 'checkout.session.completed':
         try:
             checkout_session = event.data.object
-            handle_checkout_session_succeeded(checkout_session)
+            handle_successful_payment(checkout_session)
         except Exception as e:
             print('Error handling successful checkout session:', e)
     else:
@@ -274,29 +275,6 @@ def get_files(event_body: Dict):
         }
 
         resp.append(item)
-
-    return resp
-
-
-@router.post('/submit-application')
-def submit_application(event_body: Dict):
-    user_email = get_email(event_body)
-    if not user_email:
-        return invalid_token
-
-    subject = 'Turbocaid Application Summary'
-    to_emails = os.environ.get('TO_EMAILS', 'jason.5001001@gmail.com')
-    email_body = f'{user_email} submitted.'
-
-    attachment_string = build_csv(event_body['value_to_update'])
-    resp = send_email(subject, to_emails, email_body, attachment_string)
-
-    # update submit field
-    application_uuid = event_body['application_uuid']
-    key_to_update = 'submitted_date'
-    now = datetime.datetime.now().isoformat()
-
-    update_dynamodb(user_email, application_uuid, key_to_update, now)
 
     return resp
 
@@ -504,7 +482,7 @@ def create_custom_price(event_body: Dict):
         ReturnValues='NONE'
     )
 
-    resp = get_custom_price_detail(email)
+    resp = get_price_detail(email)
 
     return resp
 
@@ -523,7 +501,7 @@ def update_custom_price(event_body: Dict):
     update_custom_price_dynamodb(email, 'updated_at', now)
     update_custom_price_dynamodb(email, 'updated_by', user_email)
 
-    resp = get_custom_price_detail(email)
+    resp = get_price_detail(email)
 
     return resp
 

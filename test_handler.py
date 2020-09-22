@@ -206,12 +206,12 @@ def test_create_payment_session():
             'quantity': 1,
         }],
         mode='payment',
-        client_reference_id=APPLICATION_UUID,
+        metadata={'application_uuid': APPLICATION_UUID},
         success_url='https://localhost:3006/success',
         cancel_url='https://localhost:3006/cancel',
     )
     assert session is not None
-    assert session.client_reference_id == APPLICATION_UUID
+    assert session.metadata.application_uuid == APPLICATION_UUID
     return session
 
 
